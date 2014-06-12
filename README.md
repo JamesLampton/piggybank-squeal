@@ -30,23 +30,23 @@ code.
 Install the newest version of Storm.  This was necessary due to a bug in
 the current release available in maven.
 
-    % git clone https://github.com/apache/incubator-storm.git
-    % cd incubator-storm
-    % mvn install
+    git clone https://github.com/apache/incubator-storm.git
+    cd incubator-storm
+    mvn install
 
 Install Pig with Squeal:
 
-    % git clone https://github.com/JamesLampton/pig-squeal.git
-    % cd pig-squeal
-    % ant -Dhadoopversion=23 package \
+    git clone https://github.com/JamesLampton/pig-squeal.git
+    cd pig-squeal
+    ant -Dhadoopversion=23 package \
         -Dforrest.home=/home/jhl1/work.local/apache-forrest-0.9/
-    % mvn install:install-file -Dfile=build/pig-0.14.0-SNAPSHOT.jar \
+    mvn install:install-file -Dfile=build/pig-0.14.0-SNAPSHOT.jar \
         -DgroupId=org.apache.pig -DartifactId=pig \
         -Dversion=0.14.0-SNAPSHOT -Dpackaging=jar
 
 Build piggybank-squeal:
 
-    % mvn assembly:single
+    mvn assembly:single
 
 Examples
 ========
