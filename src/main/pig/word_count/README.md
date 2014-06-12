@@ -31,7 +31,8 @@ Data would be stored in `basic_word_count`:
 Now, lets switch into streaming mode.  This is where you'll need a bit more
 infrastructure.  At this time, I have a RabbitMQ server hosting my experiment
 feeds.  So, this project includes that spout (this is Storm speak in case you
-don't know, you may want to check out http://storm.incubator.apache.org/documentation/Tutorial.html
+don't know, you may want to check out the 
+[Storm Tutorial](http://storm.incubator.apache.org/documentation/Tutorial.html) 
 if you're unfamiliar with these concepts).  To use it from Pig, we'll use the
 `SpoutWrapper` loader:
 
@@ -65,19 +66,13 @@ input/output statements.  TODO: create a simple debug spout...):
 Now, `storm-local` (like plain `local`) will launch a test cluster.  The `DebugOutput`
 store will output the results to stdout (here is a sample for the word "this"):
 
-> DEBUG: (this,2014-06-12T02:32:00.000Z,13,1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,21,1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,13,-1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,28,1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,21,-1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,38,1)
->
-> DEBUG: (this,2014-06-12T02:32:00.000Z,28,-1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,13,1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,21,1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,13,-1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,28,1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,21,-1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,38,1)
+    DEBUG: (this,2014-06-12T02:32:00.000Z,28,-1)
 
 Now, what we're seeing is that "this" was seen 13 times at 2:32 GMT.  Wait,
 scratch that, we saw it 21 times.  I'm sorry, it was 28...  Basically for
@@ -94,7 +89,7 @@ to `RMQStorage`.  Before you do, be sure to setup state for your intermediate gr
 State
 =====
 
-By default, squeal stores intermediate state using the Trident in memory store (TODO: LRU or just memory?).
+By default, Squeal stores intermediate state using the Trident in memory store (TODO: LRU or just memory?).
 This presents three problems: filling memory, lack of persistence, and no fault tolerance.
 Trident provides a state mechanism to address all these issues.  To enable them for Squeal,
 you will need to set properties to tell the system how to persist things.  This project
@@ -128,17 +123,12 @@ this capability.
 Now, after re-running our test code (with `-P basic_word_count.properties`) we can check in
 Redis for intermediate results:
 
-> redis 127.0.0.1:6379[1]> keys (this,2014\*
->
->  1) "(this,2014-06-12T02:46:00.000Z)\n"
->
->  2) "(this,2014-06-12T02:45:00.000Z)\n"
->
->  3) "(this,2014-06-12T02:42:00.000Z)\n"
->
->  4) "(this,2014-06-12T02:40:00.000Z)\n"
->
->  5) "(this,2014-06-12T02:41:00.000Z)\n"
+    redis 127.0.0.1:6379[1]> keys (this,2014\*
+     1) "(this,2014-06-12T02:46:00.000Z)\n"
+     2) "(this,2014-06-12T02:45:00.000Z)\n"
+     3) "(this,2014-06-12T02:42:00.000Z)\n"
+     4) "(this,2014-06-12T02:40:00.000Z)\n"
+     5) "(this,2014-06-12T02:41:00.000Z)\n"
 
 Because we compressed the values, it would be meaningless to examine them.  However, if you
 ever need to debug things there is a utility routine in `StateWrapper`:
@@ -148,7 +138,7 @@ ever need to debug things there is a utility routine in `StateWrapper`:
         "$(grep words_time_gr_store_opts src/main/pig/word_count/basic_word_count.properties |\
             cut -f 2- -d=)" "(this,2014-06-12T02:50:00.000Z)"
 
-Which produces the following arcane results:
+Which produces the following arcane results (pretty printed by hand...):
 
     [CombineWrapperState@-711013265: [
         last=CombineTupleWritable(
@@ -158,6 +148,6 @@ Which produces the following arcane results:
 
 Basically, the system stores the current and last values for each key.  When a new value
 arrives, these are used to produce the appropriate delta messages.  Note: `COUNT` is combinable and
-invertible so it can get away with storing a single integer.  This isn't always the case and squeal
+invertible so it can get away with storing a single integer.  This isn't always the case and Squeal
 will fall back to another mechanism that stores much more data.  It may not be fast or efficient,
 but it will be correct.

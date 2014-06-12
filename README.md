@@ -23,10 +23,6 @@ NOTE: this is beta code.  I still need to finish porting my changes from pig-0.1
 Building/Installing
 ===================
 
-NOTE: To ease any startup, I have included a distribution of Squeal under squeal-dist.
-You will still need to deploy the pig-0.14.0-SNAPSHOT jar file to build this
-code.
-
 Install the newest version of Storm.  This was necessary due to a bug in
 the current release available in maven.
 
@@ -39,13 +35,15 @@ Install Pig with Squeal:
     git clone https://github.com/JamesLampton/pig-squeal.git
     cd pig-squeal
     ant -Dhadoopversion=23 package \
-        -Dforrest.home=/home/jhl1/work.local/apache-forrest-0.9/
+        -Dforrest.home=$FORREST_HOME
     mvn install:install-file -Dfile=build/pig-0.14.0-SNAPSHOT.jar \
         -DgroupId=org.apache.pig -DartifactId=pig \
         -Dversion=0.14.0-SNAPSHOT -Dpackaging=jar
 
 Build piggybank-squeal:
 
+    git clone https://github.com/JamesLampton/piggybank-squeal.git
+    cd piggybank-squeal
     mvn assembly:single
 
 Examples
