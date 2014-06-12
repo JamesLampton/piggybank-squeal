@@ -5,7 +5,7 @@ Squeal is a means of executing Pig scripts on Storm.  However, because
 things slightly different, this project provides some additional glue
 routines and the quintesential "Hello world!" of map reduce: word count.
 
-A basic explanation of how this works is available under doc/streamingpig.pdf.
+A basic explanation of how this works is available under [doc/streamingpig.pdf](https://github.com/JamesLampton/piggybank-squeal/blob/master/doc/streamingpig.pdf).
 However, this paper does not reference a significantly related work by Lammel
 and Saile: http://softlang.uni-koblenz.de/deltamr/
 
@@ -51,4 +51,4 @@ Build piggybank-squeal:
 Examples
 ========
 
-See src/main/pig/word\_count/README for further explanation.
+See the [word count](https://github.com/JamesLampton/piggybank-squeal/tree/master/src/main/pig/word_count) example for further explanation.
