@@ -24,10 +24,12 @@ Building/Installing
 ===================
 
 Install the newest version of Storm.  This was necessary due to a bug in
-the current release available in maven.
+the current release available in maven.  The following is necessary until
+maven central catches up.
 
     git clone https://github.com/apache/incubator-storm.git
     cd incubator-storm
+    git checkout tags/v0.9.2-incubating
     mvn install
 
 Install Pig with Squeal:
