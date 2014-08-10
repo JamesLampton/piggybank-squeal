@@ -20,6 +20,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.plan.OperatorKey;
+import org.apache.pig.piggybank.squeal.MonkeyPatch;
 
 public class NOPLoad extends POLoad {
 
@@ -102,7 +103,8 @@ public class NOPLoad extends POLoad {
 				new FuncSpec(NOPLoader.class.getName() + "()"));
 		
 		this.setLFile(newLFile);
-		this.setAlias(load.getAlias());
+		MonkeyPatch.POLoadSetAlias(this, load.getAlias());
+		
 	}
 
 	@Override

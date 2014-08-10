@@ -23,6 +23,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POUnion;
+import org.apache.pig.piggybank.squeal.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.backend.storm.io.NOPLoad;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.io.TridentStatePack;
@@ -215,7 +216,7 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 		// We're going to create a new operator to stash the results from the static tree.
 		String scope = mr.getOperatorKey().getScope();
 		MapReduceOper state_mr = new MapReduceOper(new OperatorKey(scope, NodeIdGenerator.getGenerator().getNextNodeId(scope)));
-		state_mr.setRequestedParallelism(mr.getRequestedParallelism());
+		MonkeyPatch.MapReduceOperSetRequestedParallelism(state_mr, mr.getRequestedParallelism());
 //		System.out.println("StaticPlanFixer ---------------->" + state_mr.getRequestedParallelism() + " " + mr.getRequestedParallelism() + " " + mr.name());
 
 		// Clone the Map plan from mr.

@@ -34,6 +34,7 @@ import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.JarManager;
 import org.apache.pig.impl.util.ObjectSerializer;
+import org.apache.pig.piggybank.squeal.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.MRtoSConverter;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.ReplJoinFileFixer;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
@@ -92,7 +93,8 @@ public class StormLauncher extends Launcher {
 			} else {
 				pc.setExecType(ExecType.MAPREDUCE);
 			}
-			pc.refreshExecutionEngine();
+			
+			MonkeyPatch.PigContextRefreshEngine(pc);
 			
 			PigStats ps = mrlauncher.launchPig(php, grpName, pc);
 			if (ps.getReturnCode() != ReturnCode.SUCCESS) {
@@ -102,7 +104,7 @@ public class StormLauncher extends Launcher {
 			
 			// Restore the exectype.
 			pc.setExecType(memo_execType);
-			pc.refreshExecutionEngine();
+			MonkeyPatch.PigContextRefreshEngine(pc);
 			
 			// For replicated join files:
 			// The temp files will be deleted by Pig's Main.  The topology will live on

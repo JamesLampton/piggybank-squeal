@@ -18,16 +18,7 @@
 
 package org.apache.pig.piggybank.squeal;
 
-import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;
-import org.apache.pig.data.DataType;
-import org.apache.pig.data.Tuple;
-import org.apache.pig.impl.io.FileLocalizer;
-import org.apache.pig.test.MiniCluster;
-import org.apache.pig.test.Util;
-import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.backend.storm.StormExecType;
-import org.json.simple.JSONValue;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -41,21 +32,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.FileOutputStream;
 import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Properties;
-import java.util.Random;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.hadoop.conf.Configuration;
-
-import storm.trident.testing.LRUMemoryMapState;
-import backtype.storm.testing.FixedTupleSpout;
-import backtype.storm.topology.base.BaseRichSpout;
 /*
  * Testcase aimed at testing Squeal.
 */
@@ -63,7 +43,7 @@ import backtype.storm.topology.base.BaseRichSpout;
 public class TestStream extends TestCase {
     
     private final Log log = LogFactory.getLog(getClass());
-    private static MiniCluster cluster;
+//FIXME    private static MiniCluster cluster; 
     private static final String STOPWORDS_FILE = "stop_words.txt";
 	private static final String[] STOPWORDS = {
 		"a", "able", "about", "across", "after", "all", "almost", "also", 
@@ -93,11 +73,11 @@ public class TestStream extends TestCase {
     	System.setProperty("hadoop.log.dir", "build/test/logs");
     	
     	if (runMiniCluster) {
-    		cluster = MiniCluster.buildCluster();
+    		//FIXME    		cluster = MiniCluster.buildCluster();
     		// Write out a stop list.    	
-    		Util.createInputFile(cluster, STOPWORDS_FILE, STOPWORDS);
+    		//FIXME Util.createInputFile(cluster, STOPWORDS_FILE, STOPWORDS);
 //    		pig = new PigServer(ExecType.STORM, cluster.getProperties());
-        	pig = new PigServer(new StormExecType(), cluster.getProperties());
+    		//FIXME   	pig = new PigServer(new StormExecType(), cluster.getProperties());
     	} else {
         	pig = new PigServer("storm-local");
 //        	pig = new PigServer("local");
@@ -114,14 +94,14 @@ public class TestStream extends TestCase {
     @AfterClass
     public static void oneTimeTearDown() throws Exception {
     	if (runMiniCluster) {
-    		cluster.shutDown();
+    		//FIXME cluster.shutDown();
     	}
     }
     
     @After
     public void tearDown() throws Exception {
     	if (runMiniCluster) {
-    		Util.deleteFile(cluster, STOPWORDS_FILE);
+    		//FIXME Util.deleteFile(cluster, STOPWORDS_FILE);
     	}
     }
     

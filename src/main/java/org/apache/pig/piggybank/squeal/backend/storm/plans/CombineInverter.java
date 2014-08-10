@@ -12,6 +12,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
 import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.util.MultiMap;
+import org.apache.pig.piggybank.squeal.MonkeyPatch;
 
 public class CombineInverter {
 	private PhysicalPlan plan;
@@ -44,7 +45,7 @@ public class CombineInverter {
 				
 		// Cycle through the UDFs and swap them with InitNeg.
 		// Taken from CombinerOptimizer.
-		byte type = POUserFunc.INITIALNEG;
+		byte type = MonkeyPatch.POUserFuncINITIALNEG;
 		for(PhysicalPlan p : foreach.getInputPlans()){
 			List<PhysicalOperator> leaves = p.getLeaves();
 			if (leaves == null || leaves.size() != 1) {
