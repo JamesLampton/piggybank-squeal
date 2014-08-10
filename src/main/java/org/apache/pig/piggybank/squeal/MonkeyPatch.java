@@ -1,5 +1,7 @@
 package org.apache.pig.piggybank.squeal;
 
+import java.lang.reflect.Field;
+
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLoad;
 import org.apache.pig.impl.PigContext;
@@ -9,20 +11,44 @@ public class MonkeyPatch {
 	public static final byte POUserFuncINITIALNEG = -1;
 
 	public static void PigContextRefreshEngine(PigContext pc) {
-		// TODO Auto-generated method stub
-//		pc.refreshExecutionEngine();
-	}
-
-	public static void POLoadSetAlias(POLoad nopLoad, String alias) {
-		// TODO Auto-generated method stub
-//		nopLoad.setAlias(load.getAlias());
+		/* Patch for PigContext:
+		 * 
+		 * +    public void refreshExecutionEngine() {
+         * +    	executionEngine = execType.getExecutionEngine(this);
+         * +    }
+		 */
+		
+		// We're going to use reflection to hack this one out.
+		try {
+			Class<? extends PigContext> klazz = pc.getClass();
+			Field executionEngine = klazz.getField("executionEngine");
+		
+			executionEngine.setAccessible(true);
+			executionEngine.set(pc, pc.getExecutionEngine());
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
 
 	public static void MapReduceOperSetRequestedParallelism(
 			MapReduceOper state_mr, int requestedParallelism) {
-//		state_mr.setRequestedParallelism(mr.getRequestedParallelism());
-		// TODO Auto-generated method stub
+		/* Patch for MapReduceOper:
+		 * 
+		 * +    public void setRequestedParallelism(int rp) {
+		 * +        requestedParallelism = rp;
+		 * +    }
+		 */
 		
+		// We're going to use reflection to hack this one out.
+		try {
+			Class<? extends MapReduceOper> klazz = state_mr.getClass();
+			Field f_rp = klazz.getField("requestedParallelism");
+
+			f_rp.setAccessible(true);
+			f_rp.set(state_mr, requestedParallelism);
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}		
 	}
 
 }

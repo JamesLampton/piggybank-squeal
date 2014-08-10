@@ -103,8 +103,7 @@ public class NOPLoad extends POLoad {
 				new FuncSpec(NOPLoader.class.getName() + "()"));
 		
 		this.setLFile(newLFile);
-		MonkeyPatch.POLoadSetAlias(this, load.getAlias());
-		
+		this.addOriginalLocation(load.getAlias(), load.getOriginalLocations());
 	}
 
 	@Override
