@@ -1,4 +1,4 @@
-package org.apache.pig.backend.storm.state;
+package org.apache.pig.piggybank.squeal.backend.storm.state;
 
 import java.util.ArrayList;
 import java.util.HashMap;

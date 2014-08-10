@@ -1,4 +1,4 @@
-package org.apache.pig.backend.storm.io;
+package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;

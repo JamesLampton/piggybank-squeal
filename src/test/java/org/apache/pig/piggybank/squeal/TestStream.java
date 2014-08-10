@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.test.storm;
+package org.apache.pig.piggybank.squeal;
 
 import org.apache.pig.ExecType;
 import org.apache.pig.PigServer;

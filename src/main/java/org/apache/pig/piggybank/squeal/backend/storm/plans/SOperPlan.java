@@ -1,4 +1,4 @@
-package org.apache.pig.backend.storm.plans;
+package org.apache.pig.piggybank.squeal.backend.storm.plans;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

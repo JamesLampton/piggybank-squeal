@@ -1,4 +1,4 @@
-package org.apache.pig.backend.storm;
+package org.apache.pig.piggybank.backend.storm;
 
 import java.io.BufferedOutputStream;
 import java.io.File;

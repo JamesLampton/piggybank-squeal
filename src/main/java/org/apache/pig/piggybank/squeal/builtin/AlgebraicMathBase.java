@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.builtin;
+package org.apache.pig.piggybank.squeal.builtin;
 
 import java.io.IOException;
 import java.math.BigDecimal;

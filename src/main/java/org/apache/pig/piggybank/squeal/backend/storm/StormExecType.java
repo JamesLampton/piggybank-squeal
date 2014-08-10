@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.backend.storm;
+package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.util.Properties;
 

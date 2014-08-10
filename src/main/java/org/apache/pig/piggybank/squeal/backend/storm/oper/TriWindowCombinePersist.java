@@ -1,4 +1,4 @@
-package org.apache.pig.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.backend.storm.oper;
 
 import java.io.DataInput;
 import java.io.DataOutput;

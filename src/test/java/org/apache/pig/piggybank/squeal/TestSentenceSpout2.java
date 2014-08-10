@@ -1,4 +1,4 @@
-package org.apache.pig.test.storm;
+package org.apache.pig.piggybank.squeal;
 
 import java.util.ArrayList;
 import java.util.List;
