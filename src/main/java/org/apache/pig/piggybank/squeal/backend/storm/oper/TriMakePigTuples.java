@@ -3,9 +3,7 @@ package org.apache.pig.piggybank.squeal.backend.storm.oper;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.pig.backend.storm.io.SpoutWrapper;
 import org.apache.pig.data.DataByteArray;
-import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.NullableTuple;
 

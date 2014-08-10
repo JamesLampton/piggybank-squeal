@@ -4,15 +4,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.backend.hadoop.HDataType;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
-import org.apache.pig.backend.storm.oper.CombineWrapper;
-import org.apache.pig.backend.storm.oper.TriBasicPersist;
-import org.apache.pig.backend.storm.oper.TriReduce;
-import org.apache.pig.backend.storm.oper.TriWindowCombinePersist;
-import org.apache.pig.data.DataType;
+import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper;
+import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist;
+import org.apache.pig.piggybank.squeal.backend.storm.oper.TriWindowCombinePersist;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.NullableTuple;
@@ -22,12 +19,10 @@ import org.apache.pig.impl.plan.OperatorKey;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;
 import storm.trident.operation.CombinerAggregator;
-import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import storm.trident.state.map.MapState;
 import storm.trident.tuple.TridentTuple;
 import storm.trident.tuple.TridentTupleView;
-import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
 
 public class TridentStatePack extends POPackage {
 

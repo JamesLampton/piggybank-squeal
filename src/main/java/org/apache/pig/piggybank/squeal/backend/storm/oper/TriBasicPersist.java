@@ -8,10 +8,8 @@ import java.util.Map.Entry;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.pig.backend.storm.oper.TriWindowCombinePersist.WindowCombineState;
-import org.apache.pig.backend.storm.state.CombineTupleWritable;
-import org.apache.pig.backend.storm.state.IPigIdxState;
-import org.apache.pig.backend.storm.state.MapIdxWritable;
+import org.apache.pig.piggybank.squeal.backend.storm.state.IPigIdxState;
+import org.apache.pig.piggybank.squeal.backend.storm.state.MapIdxWritable;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
 

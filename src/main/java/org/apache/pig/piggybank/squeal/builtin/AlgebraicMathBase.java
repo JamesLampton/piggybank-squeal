@@ -23,7 +23,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import org.apache.pig.Algebraic;
-import org.apache.pig.AlgebraicInverse;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;

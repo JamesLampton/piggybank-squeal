@@ -23,9 +23,9 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POUnion;
-import org.apache.pig.backend.storm.io.NOPLoad;
-import org.apache.pig.backend.storm.io.SpoutWrapper;
-import org.apache.pig.backend.storm.io.TridentStatePack;
+import org.apache.pig.piggybank.squeal.backend.storm.io.NOPLoad;
+import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper;
+import org.apache.pig.piggybank.squeal.backend.storm.io.TridentStatePack;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.plan.DependencyOrderWalker;

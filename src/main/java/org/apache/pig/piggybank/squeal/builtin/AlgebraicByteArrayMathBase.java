@@ -21,7 +21,7 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.pig.Accumulator;
-import org.apache.pig.AlgebraicInverse;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;

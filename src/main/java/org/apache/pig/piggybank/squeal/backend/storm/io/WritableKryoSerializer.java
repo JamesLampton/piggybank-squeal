@@ -1,7 +1,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import org.apache.hadoop.io.Writable;
-import org.apache.pig.backend.storm.state.PigSerializer;
+import org.apache.pig.piggybank.squeal.backend.storm.state.PigSerializer;
 
 import com.esotericsoftware.kryo.Kryo;
 import com.esotericsoftware.kryo.Serializer;

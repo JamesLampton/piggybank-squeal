@@ -20,11 +20,15 @@ package org.apache.pig.piggybank.squeal.builtin;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.pig.AlgebraicInverse;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 import org.apache.pig.FuncSpec;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.builtin.AlgebraicMathBase.KNOWN_OP;
+import org.apache.pig.builtin.BigDecimalSum;
+import org.apache.pig.builtin.BigIntegerSum;
+import org.apache.pig.builtin.DoubleSum;
+import org.apache.pig.builtin.LongSum;
+import org.apache.pig.piggybank.squeal.builtin.AlgebraicMathBase.KNOWN_OP;
 import org.apache.pig.data.DataType;
 import org.apache.pig.impl.logicalLayer.FrontendException;
 import org.apache.pig.impl.logicalLayer.schema.Schema;

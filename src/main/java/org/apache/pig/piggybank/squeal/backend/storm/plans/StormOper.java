@@ -1,12 +1,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.plans;
 
-import java.util.List;
-
-import org.apache.pig.LoadFunc;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
-import org.apache.pig.backend.storm.io.SpoutWrapper;
-import org.apache.pig.backend.storm.state.StateWrapper;
+import org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.Operator;
 import org.apache.pig.impl.plan.OperatorKey;
@@ -17,7 +12,6 @@ import backtype.storm.tuple.Fields;
 import storm.trident.operation.BaseFunction;
 import storm.trident.operation.Function;
 import storm.trident.state.StateFactory;
-import storm.trident.testing.LRUMemoryMapState;
 
 public class StormOper extends Operator<SOpPlanVisitor> {
 

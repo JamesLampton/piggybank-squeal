@@ -11,7 +11,7 @@ import java.util.Random;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Writable;
-import org.apache.pig.backend.storm.oper.TriBasicPersist.TriBasicPersistState;
+import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist.TriBasicPersistState;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
 

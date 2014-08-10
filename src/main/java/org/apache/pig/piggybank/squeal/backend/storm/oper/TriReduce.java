@@ -1,7 +1,6 @@
 package org.apache.pig.piggybank.squeal.backend.storm.oper;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -11,9 +10,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.MapWritable;
 import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapreduce.Reducer.Context;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.HDataType;
@@ -24,10 +21,8 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.Physica
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.util.PlanHelper;
-import org.apache.pig.backend.storm.io.StormPOStoreImpl;
-import org.apache.pig.backend.storm.oper.CombineWrapper.CombineWrapperState;
-import org.apache.pig.backend.storm.state.CombineTupleWritable;
-import org.apache.pig.backend.storm.state.IPigIdxState;
+import org.apache.pig.piggybank.squeal.backend.storm.io.StormPOStoreImpl;
+import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper.CombineWrapperState;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
@@ -37,7 +32,6 @@ import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.Pair;
 
 import backtype.storm.tuple.Values;
-import storm.trident.operation.BaseFunction;
 import storm.trident.operation.TridentCollector;
 import storm.trident.operation.TridentOperationContext;
 import storm.trident.tuple.TridentTuple;

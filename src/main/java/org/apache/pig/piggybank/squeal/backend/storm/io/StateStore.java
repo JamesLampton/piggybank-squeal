@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.pig.backend.hadoop.HDataType;
-import org.apache.pig.backend.storm.state.StateWrapper;
 import org.apache.pig.builtin.PigStorage;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.PigNullableWritable;
+import org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper;
 
 import backtype.storm.tuple.Values;
 import storm.trident.state.StateFactory;

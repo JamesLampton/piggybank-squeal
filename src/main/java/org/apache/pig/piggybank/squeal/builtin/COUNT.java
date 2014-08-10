@@ -24,7 +24,7 @@ import java.util.List;
 
 import org.apache.pig.Accumulator;
 import org.apache.pig.Algebraic;
-import org.apache.pig.AlgebraicInverse;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 import org.apache.pig.EvalFunc;
 import org.apache.pig.FuncSpec;
 import org.apache.pig.PigException;

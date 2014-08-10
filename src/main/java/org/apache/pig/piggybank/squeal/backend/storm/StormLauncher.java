@@ -1,4 +1,4 @@
-package org.apache.pig.piggybank.backend.storm;
+package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.io.BufferedOutputStream;
 import java.io.File;
@@ -27,11 +27,6 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.DotMRP
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROperPlan;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MRPrinter;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
-import org.apache.pig.backend.storm.plans.MRtoSConverter;
-import org.apache.pig.backend.storm.plans.ReplJoinFileFixer;
-import org.apache.pig.backend.storm.plans.ReplJoinFixer;
-import org.apache.pig.backend.storm.plans.SOperPlan;
-import org.apache.pig.backend.storm.plans.SPrinter;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.FileLocalizer;
 import org.apache.pig.impl.io.FileSpec;
@@ -39,6 +34,10 @@ import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.JarManager;
 import org.apache.pig.impl.util.ObjectSerializer;
+import org.apache.pig.piggybank.squeal.backend.storm.plans.MRtoSConverter;
+import org.apache.pig.piggybank.squeal.backend.storm.plans.ReplJoinFileFixer;
+import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
+import org.apache.pig.piggybank.squeal.backend.storm.plans.SPrinter;
 import org.apache.pig.tools.pigstats.PigStats;
 import org.apache.pig.tools.pigstats.PigStatsUtil;
 
