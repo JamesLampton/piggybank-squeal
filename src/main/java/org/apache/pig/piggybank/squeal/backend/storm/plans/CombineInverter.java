@@ -123,6 +123,7 @@ public class CombineInverter {
 				} else {
 					// Replace the whole function with a wrapper.
 					// TODO: Have to replace the other parts of the combiner as well.
+					throw new RuntimeException("Unable to invert: " + func.getClass().getName());
 				}
 				
 				/* func.setAlgebraicFunction(type);
