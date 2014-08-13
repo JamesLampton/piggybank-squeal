@@ -3,13 +3,10 @@ package org.apache.pig.piggybank.squeal;
 import java.lang.reflect.Field;
 
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
-import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLoad;
 import org.apache.pig.impl.PigContext;
 
 public class MonkeyPatch {
 	
-	public static final byte POUserFuncINITIALNEG = -1;
-
 	public static void PigContextRefreshEngine(PigContext pc) {
 		/* Patch for PigContext:
 		 * 

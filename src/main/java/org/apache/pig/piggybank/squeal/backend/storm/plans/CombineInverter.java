@@ -1,9 +1,13 @@
 package org.apache.pig.piggybank.squeal.backend.storm.plans;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.List;
 
+import org.apache.pig.EvalFunc;
+import org.apache.pig.FuncSpec;
 import org.apache.pig.PigException;
-import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POProject;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.expressionOperators.POUserFunc;
@@ -12,7 +16,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLocalRearrange;
 import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.util.MultiMap;
-import org.apache.pig.piggybank.squeal.MonkeyPatch;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 
 public class CombineInverter {
 	private PhysicalPlan plan;
@@ -24,6 +28,32 @@ public class CombineInverter {
 	
 	public MultiMap<PhysicalOperator, PhysicalOperator> getLastOpMap() {
 		return opmap;
+	}
+	
+	public AlgebraicInverse getHelper(EvalFunc func) throws PlanException {
+		// Find the base name.
+		String[] components = func.getClass().getName().split("[.]");
+		String helper_name = "org.apache.pig.piggybank.squeal.builtin" + components[components.length - 1];
+		
+		// Attempt to instantiate the class.
+		Class helper;
+		try {
+			helper = func.getClass().getClassLoader().loadClass(helper_name);
+			
+			// Instantiate the helper.
+			AlgebraicInverse instance = (AlgebraicInverse) helper.getConstructor().newInstance();
+
+			
+		} catch (ClassNotFoundException e) {
+			return null;
+		} catch (Exception e) {
+			int errCode = 2019;
+			String msg = "Unable to instantiate helper class: " + helper_name;
+			throw new PlanException(msg, errCode, PigException.BUG);
+		}
+		
+		
+		return null;
 	}
 	
 	public PhysicalPlan getInverse() throws CloneNotSupportedException, PlanException {
@@ -45,7 +75,6 @@ public class CombineInverter {
 				
 		// Cycle through the UDFs and swap them with InitNeg.
 		// Taken from CombinerOptimizer.
-		byte type = MonkeyPatch.POUserFuncINITIALNEG;
 		for(PhysicalPlan p : foreach.getInputPlans()){
 			List<PhysicalOperator> leaves = p.getLeaves();
 			if (leaves == null || leaves.size() != 1) {
@@ -64,10 +93,59 @@ public class CombineInverter {
 				throw new PlanException(msg, errCode, PigException.BUG);
 			}
 
-			POUserFunc func = (POUserFunc)leaf;
+			POUserFunc func_leaf = (POUserFunc)leaf;
 			try {
-				func.setAlgebraicFunction(type);
-			} catch (ExecException e) {
+				// We need to patch the funcSpec for the function.
+				Class<? extends POUserFunc> klazz = func_leaf.getClass();
+				
+				Field origFSpec = klazz.getField("origFSpec");
+				origFSpec.setAccessible(true);
+				
+				Method instantiateFunction = klazz.getMethod("instantiateFunc", origFSpec.get(func_leaf).getClass());
+				instantiateFunction.setAccessible(true);
+				
+				instantiateFunction.invoke(func_leaf, origFSpec.get(func_leaf));
+				
+				Field func_field = klazz.getField("func");
+				func_field.setAccessible(true);
+				
+				Field funcSpec = klazz.getField("funcSpec");
+				funcSpec.setAccessible(true);
+				
+				EvalFunc func = (EvalFunc) func_field.get(func_leaf);
+				AlgebraicInverse helper;
+				
+				if (AlgebraicInverse.class.isAssignableFrom(func.getClass())) {
+					funcSpec.set(func_leaf, new FuncSpec(((AlgebraicInverse) func).getInitialInverse()));
+				} else if ((helper = this.getHelper(func)) != null) {
+					// If there is a helper function in ...piggybank.squeal.builtin, use it.
+					funcSpec.set(func_leaf, new FuncSpec(helper.getInitialInverse()));
+				} else {
+					// Replace the whole function with a wrapper.
+					// TODO: Have to replace the other parts of the combiner as well.
+				}
+				
+				/* func.setAlgebraicFunction(type);
+				 * 
+				 * Patch for POUserFunc:
+				 * 
+				 * +        case INITIALNEG:
+				 * +        	funcSpec = new FuncSpec(getInitialNeg());
+				 * +        	break;
+				 * 
+				 * +    public String getInitialNeg() throws ExecException {
+				 * +        instantiateFunc(origFSpec);
+				 * +        if (func instanceof AlgebraicInverse && ((AlgebraicInverse) func).getInitialInverse() != null) {
+				 * +            return ((AlgebraicInverse) func).getInitialInverse();
+				 * +        } else {
+				 * +            int errCode = 2072;
+				 * +            String msg = "Unable to retrieve inverse for algebraic function: " + func.getClass().getName();
+				 * +            throw new ExecException(msg, errCode, PigException.BUG);
+				 * +        }
+				 * +    }
+				 * 
+				 */
+			} catch (Exception e) {
 				int errCode = 2075;
 				String msg = "Could not set algebraic function type.";
 				throw new PlanException(msg, errCode, PigException.BUG, e);

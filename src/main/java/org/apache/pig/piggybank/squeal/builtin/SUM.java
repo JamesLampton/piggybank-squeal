@@ -17,84 +17,71 @@
  */
 package org.apache.pig.piggybank.squeal.builtin;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
 
-import org.apache.pig.piggybank.squeal.AlgebraicInverse;
-import org.apache.pig.FuncSpec;
 import org.apache.pig.PigException;
 import org.apache.pig.backend.executionengine.ExecException;
-import org.apache.pig.builtin.BigDecimalSum;
-import org.apache.pig.builtin.BigIntegerSum;
-import org.apache.pig.builtin.DoubleSum;
-import org.apache.pig.builtin.LongSum;
-import org.apache.pig.piggybank.squeal.builtin.AlgebraicMathBase.KNOWN_OP;
 import org.apache.pig.data.DataType;
-import org.apache.pig.impl.logicalLayer.FrontendException;
-import org.apache.pig.impl.logicalLayer.schema.Schema;
-
+import org.apache.pig.data.Tuple;
+import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 
 /**
- * Generates the sum of a set of values. This class implements
- * {@link org.apache.pig.Algebraic}, so if possible the execution will
- * performed in a distributed fashion.
- * <p>
- * SUM can operate on any numeric type.  It can also operate on bytearrays,
- * which it will cast to doubles.  It expects a bag of
- * tuples of one record each.  If Pig knows from the schema that this function
- * will be passed a bag of integers or longs, it will use a specially adapted version of
- * SUM that uses integer arithmetic for summing the data.  The return type
- * of SUM is double for float, double, or bytearray arguments and long for int
- * or long arguments.
- * <p>
- * SUM implements the {@link org.apache.pig.Accumulator} interface as well.
- * While this will never be
- * the preferred method of usage it is available in case the combiner can not be
- * used for a given calculation.
+ * Helper function for {@link org.apache.pig.builtin.SUM} that implements
+ * {@link org.apache.pig.piggybank.squeal.AlgebraicInverse}.
  */
-public class SUM extends AlgebraicByteArrayMathBase {
+public class SUM extends org.apache.pig.builtin.SUM {
 
     public SUM() {
-        setOp(KNOWN_OP.SUM);
+       super();
     }
 
-    public static class Intermediate extends AlgebraicByteArrayMathBase.Intermediate implements AlgebraicInverse  {
-    	public String getInitialInverse() {
-        	return AlgebraicByteArrayMathBase.InverseInitial.class.getName();
-        }
-    	
+    static public class InitialInverse extends org.apache.pig.builtin.SUM.Initial {
     	@Override
-        public KNOWN_OP getOp() {
-            return KNOWN_OP.SUM;
-            }
+        public Tuple exec(Tuple input) throws IOException {
+    		Tuple t = super.exec(input);
+    		if (t.get(0) != null) {
+    			t.set(0, negate(t.get(0)));	
+    		}
+    		
+    		return t;
+    	}
+
+		private Object negate(Object o) throws ExecException {
+			byte dt = DataType.findType(o);
+			Object neg_o = null;
+			
+			switch(dt) {
+			case DataType.BIGDECIMAL:
+				neg_o = ((BigDecimal)o).negate();
+				break;
+			case DataType.BIGINTEGER:
+				neg_o = ((BigInteger)o).negate();
+				break;
+			case DataType.FLOAT:
+				// Fall through.
+			case DataType.DOUBLE:
+				neg_o = new Double(-((Number)o).doubleValue());
+				break;
+			case DataType.INTEGER:
+				// Fall through.
+			case DataType.LONG:
+				neg_o = new Long(-((Number)o).longValue());
+				break;
+			default:
+				int errCode = 2106;
+                throw new ExecException("Unknown data type for object: " + o.getClass().getName(), errCode, PigException.BUG);
+			}
+			
+			return neg_o;
+		}
+    	
+    }
+    
+    public static class Intermediate extends org.apache.pig.builtin.SUM.Intermediate implements AlgebraicInverse  {
+    	public String getInitialInverse() {
+        	return SUM.InitialInverse.class.getName();
         }
-
-    public static class Final extends AlgebraicByteArrayMathBase.Final {
-        @Override
-        public KNOWN_OP getOp() {
-            return KNOWN_OP.SUM;
     }
-    }
-
-    /* (non-Javadoc)
-     * @see org.apache.pig.EvalFunc#getArgToFuncMapping()
-     */
-    @Override
-    public List<FuncSpec> getArgToFuncMapping() throws FrontendException {
-        List<FuncSpec> funcList = new ArrayList<FuncSpec>();
-        funcList.add(new FuncSpec(this.getClass().getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BYTEARRAY)));
-        // DoubleSum works for both Floats and Doubles
-        funcList.add(new FuncSpec(DoubleSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.DOUBLE)));
-        funcList.add(new FuncSpec(DoubleSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.FLOAT)));
-        // LongSum works for both Ints and Longs.
-        funcList.add(new FuncSpec(LongSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.INTEGER)));
-        funcList.add(new FuncSpec(LongSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.LONG)));
-        //Adding BigDecimal
-        funcList.add(new FuncSpec(BigDecimalSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGDECIMAL)));
-        //dding BigInteger
-        funcList.add(new FuncSpec(BigIntegerSum.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGINTEGER)));
-
-        return funcList;
-    }
-
 }
