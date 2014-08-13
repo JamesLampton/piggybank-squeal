@@ -18,10 +18,9 @@ public class MonkeyPatch {
 		// We're going to use reflection to hack this one out.
 		try {
 			Class<? extends PigContext> klazz = pc.getClass();
-			Field executionEngine = klazz.getField("executionEngine");
-		
+			Field executionEngine = klazz.getDeclaredField("executionEngine");
 			executionEngine.setAccessible(true);
-			executionEngine.set(pc, pc.getExecutionEngine());
+			executionEngine.set(pc, pc.getExecType().getExecutionEngine(pc));
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}
@@ -39,8 +38,7 @@ public class MonkeyPatch {
 		// We're going to use reflection to hack this one out.
 		try {
 			Class<? extends MapReduceOper> klazz = state_mr.getClass();
-			Field f_rp = klazz.getField("requestedParallelism");
-
+			Field f_rp = klazz.getDeclaredField("requestedParallelism");
 			f_rp.setAccessible(true);
 			f_rp.set(state_mr, requestedParallelism);
 		} catch (Exception e) {

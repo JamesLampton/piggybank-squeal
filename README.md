@@ -23,30 +23,24 @@ NOTE: this is beta code.  I still need to finish porting my changes from pig-0.1
 Building/Installing
 ===================
 
-Install the newest version of Storm.  This was necessary due to a bug in
-the current release available in maven.  The following is necessary until
-maven central catches up.
+NOTE: I opted to have all the Squeal code live in a separate jar to make
+it easy to pick up and use.  It also helps me maintain a cleaner codebase
+for the time being.
 
-    git clone https://github.com/apache/incubator-storm.git
-    cd incubator-storm
-    git checkout tags/v0.9.2-incubating
-    mvn install
-
-Install Pig with Squeal:
-
-    git clone https://github.com/JamesLampton/pig-squeal.git
-    cd pig-squeal
-    ant -Dhadoopversion=23 package \
-        -Dforrest.home=$FORREST_HOME
-    mvn install:install-file -Dfile=build/pig-0.14.0-SNAPSHOT.jar \
-        -DgroupId=org.apache.pig -DartifactId=pig \
-        -Dversion=0.14.0-SNAPSHOT -Dpackaging=jar
+Download and unzip the Pig 0.13 distribution.
 
 Build piggybank-squeal:
 
     git clone https://github.com/JamesLampton/piggybank-squeal.git
     cd piggybank-squeal
-    mvn assembly:single
+    mvn clean compile assembly:single
+
+Now, you will need to set your `PIG_CLASSPATH` variable:
+
+    export PIG_CLASSPATH=$(storm classpath):$(echo $PWD/target/piggybank-squeal-*ies.jar)
+
+Or you can link the jar files into `$PIG_HOME/share/libs`.  Once you do so,
+you will have a new `storm` and `storm-local` execution type.
 
 Examples
 ========

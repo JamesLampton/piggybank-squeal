@@ -3,6 +3,7 @@ package org.apache.pig.piggybank.squeal.backend.storm.plans;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.pig.EvalFunc;
@@ -33,7 +34,7 @@ public class CombineInverter {
 	public AlgebraicInverse getHelper(EvalFunc func) throws PlanException {
 		// Find the base name.
 		String[] components = func.getClass().getName().split("[.]");
-		String helper_name = "org.apache.pig.piggybank.squeal.builtin" + components[components.length - 1];
+		String helper_name = "org.apache.pig.piggybank.squeal.builtin." + components[components.length - 1];
 		
 		// Attempt to instantiate the class.
 		Class helper;
@@ -42,18 +43,18 @@ public class CombineInverter {
 			
 			// Instantiate the helper.
 			AlgebraicInverse instance = (AlgebraicInverse) helper.getConstructor().newInstance();
-
 			
+			return instance;			
 		} catch (ClassNotFoundException e) {
+			System.out.println("XX: Helper not found.");
 			return null;
 		} catch (Exception e) {
+			System.out.println("XX: Other exception.");
+			e.printStackTrace();
 			int errCode = 2019;
 			String msg = "Unable to instantiate helper class: " + helper_name;
 			throw new PlanException(msg, errCode, PigException.BUG);
 		}
-		
-		
-		return null;
 	}
 	
 	public PhysicalPlan getInverse() throws CloneNotSupportedException, PlanException {
@@ -98,18 +99,18 @@ public class CombineInverter {
 				// We need to patch the funcSpec for the function.
 				Class<? extends POUserFunc> klazz = func_leaf.getClass();
 				
-				Field origFSpec = klazz.getField("origFSpec");
+				Field origFSpec = klazz.getDeclaredField("origFSpec");
 				origFSpec.setAccessible(true);
 				
-				Method instantiateFunction = klazz.getMethod("instantiateFunc", origFSpec.get(func_leaf).getClass());
+				Method instantiateFunction = klazz.getDeclaredMethod("instantiateFunc", origFSpec.get(func_leaf).getClass());
 				instantiateFunction.setAccessible(true);
 				
 				instantiateFunction.invoke(func_leaf, origFSpec.get(func_leaf));
 				
-				Field func_field = klazz.getField("func");
+				Field func_field = klazz.getDeclaredField("func");
 				func_field.setAccessible(true);
 				
-				Field funcSpec = klazz.getField("funcSpec");
+				Field funcSpec = klazz.getDeclaredField("funcSpec");
 				funcSpec.setAccessible(true);
 				
 				EvalFunc func = (EvalFunc) func_field.get(func_leaf);

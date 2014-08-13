@@ -29,7 +29,7 @@ package (this is Storm speak in case you don't know, you may want to check out t
 if you're unfamiliar with these concepts).  To use it from Pig, we'll use the
 `SpoutWrapper` loader:
 
-    raw_msgs = LOAD '/dev/null' USING org.apache.pig.backend.storm.io.SpoutWrapper(
+    raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(
         'storm.starter.spout.RandomSentenceSpout') AS (text:chararray);
 
 The spout wrapper expects a class name (`...RandomSentenceSpout`) along with an
@@ -46,12 +46,15 @@ can still use the basic store functions but I'm not sure if I made it where they
 close the file...).  Squeal comes with a debug writer:
 
     STORE words_count INTO '$output' USING 
-        org.apache.pig.backend.storm.io.SignStoreWrapper(
-            'org.apache.pig.backend.storm.io.DebugOutput');
+        org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper(
+            'org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
 
 `SignStoreWrapper` will append +1 or -1 to the output tuples based on if they
 are "adding" or "subtracting" information.  We can run the newly updated code
 with the data and have commented out the batch input/output statements. 
+
+    # If you haven't done this step from install, don't forget:
+    export PIG_CLASSPATH=$(storm classpath):$(echo ../../../../target/piggybank-*cies.jar)
 
     pig -x storm-local -p stormstarterjarpath=... basic_word_count.pig
     
@@ -101,8 +104,8 @@ it easier to read:
             {
                 "dbNum": 1,
                 "expiration": 300,
-                "key_serializer": "org.apache.pig.backend.storm.state.PigTextSerializer",
-                "serializer": "org.apache.pig.backend.storm.state.GZPigSerializer",
+                "key_serializer": "org.apache.pig.piggybank.squeal.backend.storm.state.PigTextSerializer",
+                "serializer": "org.apache.pig.piggybank.squeal.backend.storm.state.GZPigSerializer",
                 "servers": "localhost"
             }
         ]
@@ -134,7 +137,7 @@ Because we compressed the values, it would be meaningless to examine them.  Howe
 ever need to debug things there is a utility routine in `StateWrapper`:
 
     export a_cp=$(ls $STORM_HOME/lib/*.jar $PIG_HOME/pig*.jar | xargs | tr ' ' :):$(ls target/piggybank*.jar)
-    java -cp $a_cp org.apache.pig.backend.storm.state.StateWrapper \
+    java -cp $a_cp org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper \
         "$(grep words_gr_store_opts src/main/pig/word_count/basic_word_count.properties |\
             cut -f 2- -d=)" "nature"
 

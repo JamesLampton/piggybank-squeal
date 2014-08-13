@@ -4,10 +4,6 @@ set pig.streaming.run.test.cluster.wait_time '60000';
 --set pig.streaming.debug 'true';
 set pig.streaming.spout.max.outstanding '10';
 
--- Register the helper functions.
-%default piggybanksquealpath '../../../../target/piggybank-squeal-1.0-SNAPSHOT-jar-with-dependencies.jar';
-REGISTER $piggybanksquealpath;
-
 -- Pull in data.
 -- Batch version:
 --raw_msgs = LOAD '$text_input' USING TextLoader() AS (text:chararray);
@@ -15,11 +11,10 @@ REGISTER $piggybanksquealpath;
 -- Streaming version:
 -- Load storm starter jar file for sentence spout.
 REGISTER $stormstarterjarpath;
-raw_msgs = LOAD '/dev/null' USING org.apache.pig.backend.storm.io.SpoutWrapper('storm.starter.spout.RandomSentenceSpout') AS (text:chararray);
+raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('storm.starter.spout.RandomSentenceSpout') AS (text:chararray);
 
 words = FOREACH raw_msgs GENERATE FLATTEN(TOKENIZE(text)) AS word;
 
-REGISTER ../../../../target/piggybank-squeal-1.0-SNAPSHOT-jar-with-dependencies.jar;
 words_gr = GROUP words BY word;
 
 words_count = FOREACH words_gr GENERATE group, COUNT(words) AS freq;
@@ -34,4 +29,4 @@ rmf $output;
 --STORE words_count INTO '$output';
 
 -- Streaming version:
-STORE words_count INTO '$output' USING org.apache.pig.backend.storm.io.SignStoreWrapper('org.apache.pig.backend.storm.io.DebugOutput');
+STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');

@@ -2,8 +2,6 @@
 set pig.streaming.run.test.cluster.wait_time '60000';
 
 -- Register the helper functions.
-%default piggybanksquealpath '../../../../target/piggybank-squeal-1.0-SNAPSHOT-jar-with-dependencies.jar';
-REGISTER $piggybanksquealpath;
 
 DEFINE JSONPath org.apache.pig.piggybank.evaluation.JSONPath();
 
@@ -21,7 +19,7 @@ DEFINE LENGTH org.apache.pig.piggybank.evaluation.string.LENGTH();
 
 -- Streaming version:
 %default msgOutstanding '250';
-raw_msgs = LOAD '/dev/null' USING org.apache.pig.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/twitter", "$exch", "basic_word_count", "$msgOutstanding"]') AS (msg:chararray);
+raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/twitter", "$exch", "basic_word_count", "$msgOutstanding"]') AS (msg:chararray);
 
 -- Pull out the tweet JSON/source.
 tweets = FOREACH raw_msgs GENERATE FLATTEN(STRSPLIT(msg, '\\t', 2)) AS (tweet_json:chararray, source:int);
@@ -51,5 +49,5 @@ rmf $output;
 --STORE words_count INTO '$output';
 
 -- Streaming version:
-STORE words_count INTO '$output' USING org.apache.pig.backend.storm.io.SignStoreWrapper('org.apache.pig.backend.storm.io.DebugOutput');
---STORE words_count INTO '$output' USING org.apache.pig.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.storage.RMQStorage', 'amqp://$rmqup@$rmqserver/twitter', '$exch-words');
+STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
+--STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.storage.RMQStorage', 'amqp://$rmqup@$rmqserver/twitter', '$exch-words');
