@@ -80,6 +80,15 @@ public class StormLauncher extends Launcher {
 		// Now compile the plan into a Storm plan.
 		SOperPlan sp = compile(php, pc);
 		
+		// For any of the configurations specified, pull them in as well.
+		// XXX: Doing this here so static jobs that use HBase state have the proper configs. 
+        if (pc.getClassLoader().getResource("hbase-site.xml") != null) {
+        	pc.addScriptFile("hbase-site.xml", "hbase-site.xml");
+        }
+        if (pc.getClassLoader().getResource("log4j.properties") != null) {
+        	pc.addScriptFile("log4j.properties", "log4j.properties");
+        }
+		
 		// If there is a static portion portion, execute it now.
 		if (!pc.getProperties().getProperty("pig.streaming.no.static", "false").equalsIgnoreCase("true") && sp.getStaticPlan() != null) {
 			log.info("Launching Hadoop jobs to perform static calculations...");
@@ -176,6 +185,8 @@ public class StormLauncher extends Launcher {
             if (pc.getClassLoader().getResource("core-site.xml") != null) {
             	pc.addScriptFile("core-site.xml", "core-site.xml");
             }
+            
+            
             
             // META-INF/services/org.apache.hadoop.fs.FileSystem gets hosed above per:
             // http://stackoverflow.com/questions/17265002/hadoop-no-filesystem-for-scheme-file

@@ -27,6 +27,7 @@ import org.apache.pig.piggybank.squeal.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.backend.storm.io.NOPLoad;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.io.TridentStatePack;
+import org.apache.pig.piggybank.squeal.backend.storm.state.IUDFExposer;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.plan.DependencyOrderWalker;
@@ -251,17 +252,25 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 		TridentStatePack pack = new TridentStatePack(
 				new OperatorKey(scope, NodeIdGenerator.getGenerator().getNextNodeId(scope)),
 				sf, StormOper.getWindowOpts(pc, alias));
-//		pack.setKeyType(mr.mapKeyType); FIXME: Was this replaced by something else?
+		pack.getPkgr().setKeyType(mr.mapKeyType);
 		state_mr.reducePlan.add(pack);
 		
 		// Clone the necessary UDFs.
 		state_mr.UDFs.addAll(mr.UDFs);
 		state_mr.UDFs.add(sf.getClass().getName());
+		// See if the state factory has other dependencies.
+		// Such as a MultiState.
+		if (IUDFExposer.class.isInstance(sf)) {
+			IUDFExposer ex = (IUDFExposer) sf;
+			state_mr.UDFs.addAll(ex.getUDFs());
+		}
 		
 		// Register a "storm UDF" so it gets packaged too.
 		state_mr.UDFs.add(Values.class.getName());
 		// FIXME: Fix the stupid ivy dependencies?
 		state_mr.UDFs.add("clojure.lang.IPersistentVector");
+		// Register the trident state so the piggybank-squeal jar goes.
+		state_mr.UDFs.add(TridentStatePack.class.getName());
 				
 		// Add the dependencies to using the static preds.
 		staticPlan.add(state_mr);

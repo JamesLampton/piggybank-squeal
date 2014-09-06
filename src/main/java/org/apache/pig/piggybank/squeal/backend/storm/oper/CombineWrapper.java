@@ -121,17 +121,6 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 	public MapIdxWritable zero() {
 		return new CombineWrapperState();
 	}
-	
-	public static Comparator<NullableTuple> NullableTupleComparator = new Comparator<NullableTuple>() {
-		@Override
-		public int compare(NullableTuple o1, NullableTuple o2) {
-			int res = o1.getIndex() - o2.getIndex();
-			if (res == 0) {
-				return o1.compareTo(o2);
-			}
-			return res;
-		}
-	};
 
 	public static List<NullableTuple> getTuples(MapIdxWritable m, Text which) {
 
@@ -139,9 +128,7 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 		if (state == null) {
 			return null;
 		}
-		List<NullableTuple> ret = state.getTuples(which);		
-		// Sort the tuples as the shuffle would.
-		Collections.sort(ret, NullableTupleComparator);
+		List<NullableTuple> ret = state.getTuples(which);
 		
 		return ret;
 	}

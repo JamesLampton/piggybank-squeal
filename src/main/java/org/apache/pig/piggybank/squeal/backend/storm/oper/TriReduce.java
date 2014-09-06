@@ -1,6 +1,8 @@
 package org.apache.pig.piggybank.squeal.backend.storm.oper;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -257,8 +259,23 @@ public class TriReduce extends StormBaseFunction {
 			fc.emitValues();
 		}
 	}
+	
+	public static Comparator<NullableTuple> NullableTupleComparator = new Comparator<NullableTuple>() {
+		@Override
+		public int compare(NullableTuple o1, NullableTuple o2) {
+			int res = o1.getIndex() - o2.getIndex();
+			if (res == 0) {
+				return o1.compareTo(o2);
+			}
+			return res;
+		}
+	};
 
 	public void runReduce(PigNullableWritable key, List<NullableTuple> tuples, TridentCollector collector) {
+		// Sort the tuples as the shuffle would.
+		Collections.sort(tuples, NullableTupleComparator);
+//		System.out.println("runReduce: " + tuples);
+		
 		try {
 			pack.attachInput(key, tuples.iterator());
 			if (pack instanceof POPackage)

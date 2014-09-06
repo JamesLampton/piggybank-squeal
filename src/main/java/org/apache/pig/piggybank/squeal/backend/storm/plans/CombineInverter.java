@@ -46,7 +46,7 @@ public class CombineInverter {
 			
 			return instance;			
 		} catch (ClassNotFoundException e) {
-			System.out.println("XX: Helper not found.");
+			System.out.println("XX: Helper not found:" + func.getClass().getName());
 			return null;
 		} catch (Exception e) {
 			System.out.println("XX: Other exception.");

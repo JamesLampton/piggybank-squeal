@@ -1,6 +1,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.state;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,6 @@ import org.apache.hadoop.io.Writable;
 import org.apache.pig.impl.util.Pair;
 
 import backtype.storm.task.IMetricsContext;
-
 import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import storm.trident.state.map.IBackingMap;
@@ -35,7 +35,7 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		return new Factory(args);
 	}
 	
-	public static class Factory implements StateFactory {
+	public static class Factory implements StateFactory, IUDFExposer {
 		Map<Integer, Integer> opts_map = new HashMap<Integer, Integer>();
 		StateFactory def_fact;
 		private ArrayList<Integer[]> bins_in;
@@ -95,6 +95,25 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 			
 			return NonTransactionalMap.build(new MultiState(def_state, idx_map, maps, bins_in));
 		}
+		
+		@Override
+		public Collection<? extends String> getUDFs() {
+			List<String> udfs = new ArrayList<String>();
+			
+			// Add the wrapped UDFs
+			for (StateFactory sf : state_facts) {
+				udfs.add(sf.getClass().getName());
+				
+				// Recurse in if necessary.
+				if (IUDFExposer.class.isInstance(sf)) {
+					IUDFExposer ex = (IUDFExposer) sf;
+					udfs.addAll(ex.getUDFs());
+				}
+			}
+			
+			return udfs;
+		}
+
 	}
 
 	@Override
@@ -158,5 +177,4 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 			other_state.get(i).multiPut(other_keys, other_vals);
 		}
 	}
-
 }
