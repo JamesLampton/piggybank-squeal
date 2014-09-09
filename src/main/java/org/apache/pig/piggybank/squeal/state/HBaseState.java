@@ -16,6 +16,7 @@ import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IUDFExposer;
+import org.apache.pig.piggybank.squeal.backend.storm.state.MetricsAwareCacheMap;
 
 import backtype.storm.task.IMetricsContext;
 import backtype.storm.tuple.Values;
@@ -168,7 +169,8 @@ public class HBaseState<T> implements IBackingMap<T> {
         @Override
         public State makeState(Map conf, IMetricsContext m, int partitionIndex, int numPartitions) {
             HBaseState s = new HBaseState(_tableName, _columnFamily, _opts, _ser);
-            CachedMap c = new CachedMap(s, _opts.localCacheSize);
+//          CachedMap c = new CachedMap(s, _opts.localCacheSize);
+            MetricsAwareCacheMap c = new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
             MapState ms;
             if(_type == StateType.NON_TRANSACTIONAL) {
                 ms = NonTransactionalMap.build(c);
@@ -205,10 +207,14 @@ public class HBaseState<T> implements IBackingMap<T> {
 	private byte[] _columnFamily;
 	private byte[] _columnQualifier;
 	private HTable table;
+	private String tableName;
+	private String columnFamily;
     
     public HBaseState(String tableName, String columnFamily, HBaseOptions opts, Serializer<T> ser) {
         _tableName = Bytes.toBytes(tableName);
+        this.tableName = tableName;
         _columnFamily = Bytes.toBytes(columnFamily);
+        this.columnFamily = columnFamily;
         _opts = opts;
         _columnQualifier = Bytes.toBytes(opts.columnQualifier);
         _ser = ser;
@@ -315,5 +321,9 @@ public class HBaseState<T> implements IBackingMap<T> {
 			throw new RuntimeException(e);
 		}
 	}
+	
+	public String toString() {
+    	return "HBaseState@" + this.hashCode() + " tableName: " + tableName + " columnFamily: " + columnFamily;
+    }
 
 }

@@ -49,6 +49,7 @@ public class TriReduce extends StormBaseFunction {
 	private boolean isLeaf;
 	private LinkedList<POStore> stores;
 	private AtomicInteger sign;
+	private String metricsAnnotation;
 	private final static Tuple DUMMYTUPLE = null;
 	private final static PhysicalOperator[] DUMMYROOTARR = {};
 	private final static Integer POS = 1;
@@ -83,12 +84,14 @@ public class TriReduce extends StormBaseFunction {
 		}
 	}
 	
-	public TriReduce(PigContext pc, PhysicalPlan plan, boolean noNegative, boolean isLeaf) {
+	public TriReduce(PigContext pc, PhysicalPlan plan, boolean noNegative, boolean isLeaf, String name) {
 		super(pc);
 		
 		this.noNegative = noNegative;
 		this.isLeaf = isLeaf;
 		this.sign = new AtomicInteger(0);
+		
+		metricsAnnotation = "REDUCE:" + name;
 		
 		// We need to trim things from the plan re:GenericMapReduce.java
 		reducePlan = plan;
@@ -224,8 +227,11 @@ public class TriReduce extends StormBaseFunction {
 //		System.out.println("TriReduce input: " + tri_tuple);
 		
 		PigNullableWritable key = (PigNullableWritable) tri_tuple.get(0);
+
+		collector = doMetricsStart(collector);
 		
 		CombineWrapperState cw = (CombineWrapperState) tri_tuple.get(1);
+		int tuples_in = 0;
 		
 		for (Pair<List<NullableTuple>, List<NullableTuple>> p : cw.getTupleBatches(null)) {
 			
@@ -236,6 +242,7 @@ public class TriReduce extends StormBaseFunction {
 				List<NullableTuple> tuples;
 				tuples = p.first;
 				if (tuples != null) {
+					tuples_in += tuples.size();
 					runReduce(key, tuples, fc);
 				}
 
@@ -247,6 +254,7 @@ public class TriReduce extends StormBaseFunction {
 
 				// Calculate the current values.
 				tuples = p.second;
+				tuples_in += tuples.size();
 				fc.switchToCur();
 				runReduce(key, tuples, fc);
 			} catch (Exception e) {
@@ -258,6 +266,8 @@ public class TriReduce extends StormBaseFunction {
 			// Emit positive and negative values.
 			fc.emitValues();
 		}
+		
+		doMetricsStop(collector, tuples_in, key);
 	}
 	
 	public static Comparator<NullableTuple> NullableTupleComparator = new Comparator<NullableTuple>() {
@@ -369,4 +379,9 @@ public class TriReduce extends StormBaseFunction {
             }
         }
     }
+
+	@Override
+	public String getMetricsAnnotation() {
+		return metricsAnnotation;
+	}
 }

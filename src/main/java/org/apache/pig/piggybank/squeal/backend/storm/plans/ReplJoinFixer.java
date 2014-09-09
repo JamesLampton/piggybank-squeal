@@ -160,6 +160,11 @@ public class ReplJoinFixer extends MROpPlanVisitor {
 			// Determine the leaf of the plan that produces this file.
 			// and change the POStore to non-temp.
 			MapReduceOper mr = fnToMOP.get(f.getFileName());
+			// FIXME: Ignore cases where mr is null... -- are these pruned parts?
+			if (mr == null) {
+				continue;
+			}
+			
 			List<PhysicalOperator> leaves = new ArrayList<PhysicalOperator>(mr.mapPlan.size() + mr.reducePlan.size());
 			leaves.addAll(mr.mapPlan.getLeaves());
 			leaves.addAll(mr.reducePlan.getLeaves());

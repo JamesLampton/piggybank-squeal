@@ -2,6 +2,7 @@ package org.apache.pig.piggybank.squeal.state;
 
 import backtype.storm.task.IMetricsContext;
 import backtype.storm.tuple.Values;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -9,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.pig.impl.PigContext;
+import org.apache.pig.piggybank.squeal.backend.storm.state.MetricsAwareCacheMap;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisShardInfo;
@@ -161,7 +163,8 @@ public class RedisState<T> implements IBackingMap<T> {
         @Override
         public State makeState(Map conf, IMetricsContext m, int partitionIndex, int numPartitions) {
             RedisState s = new RedisState(makeRedisClient(_servers), _opts, _ser);
-            CachedMap c = new CachedMap(s, _opts.localCacheSize);
+//            CachedMap c = new CachedMap(s, _opts.localCacheSize);
+            MetricsAwareCacheMap c = new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
             MapState ms;
             if(_type == StateType.NON_TRANSACTIONAL) {
                 ms = NonTransactionalMap.build(c);

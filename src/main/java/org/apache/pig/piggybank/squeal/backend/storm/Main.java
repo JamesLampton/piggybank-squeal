@@ -154,7 +154,7 @@ public class Main {
 //				System.out.println("processMapSOP -- input: " + input + " " + input_sop + " " + po);
 				output = input.each(
 							input.getOutputFields(),
-							new TriMapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop)),
+							new TriMapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
 							output_fields
 						).project(output_fields);
 				outputs.add(output);
@@ -306,7 +306,7 @@ public class Main {
 				// Need to reduce
 				output = input.each(
 							input.getOutputFields(), 
-							new TriReduce(pc, sop.getPlan(), false, leaves.contains(sop)), 
+							new TriReduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
 							output_fields
 						).project(output_fields);
 //				output.each(output.getOutputFields(), new Debug());

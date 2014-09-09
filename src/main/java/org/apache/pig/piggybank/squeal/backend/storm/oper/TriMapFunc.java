@@ -38,6 +38,8 @@ public class TriMapFunc extends StormBaseFunction {
 	private PlanExecutor mapPlanExecutor;
 	private PlanExecutor negMapPlanExecutor = null;
 	private boolean isLeaf;
+	private String name;
+	private String metricsAnnotation;
 	
 	@Override
 	public void	prepare(Map conf, TridentOperationContext context) {
@@ -188,11 +190,13 @@ public class TriMapFunc extends StormBaseFunction {
 		}
 	}
 
-	public TriMapFunc(PigContext pc, PhysicalPlan physicalPlan, byte mapKeyType, boolean isCombined, PhysicalOperator activeRoot, boolean isLeaf) {
+	public TriMapFunc(PigContext pc, PhysicalPlan physicalPlan, byte mapKeyType, boolean isCombined, PhysicalOperator activeRoot, boolean isLeaf, String name) {
 		super(pc);
 		
 		// Set this variable to determine if the store leaves are removed.
 		this.isLeaf = isLeaf;
+		
+		metricsAnnotation = "MAP:" + name;
 		
 		// Pull out the active root and get the predecessor.
 		List<PhysicalOperator> roots = physicalPlan.getSuccessors(activeRoot);
@@ -242,6 +246,8 @@ public class TriMapFunc extends StormBaseFunction {
 	public void execute(TridentTuple tuple, TridentCollector collector) {
 //		System.out.println("Map: " + tuple + " activeRoot: " + mapPlanExecutor.root + " leaf: " + mapPlanExecutor.leaf);
 		
+		collector = doMetricsStart(collector);
+		
 		// Determine if the tuple is positive or negative
 		Integer tive = tuple.getInteger(2);
 		
@@ -250,6 +256,8 @@ public class TriMapFunc extends StormBaseFunction {
 		} else {
 			mapPlanExecutor.execute(tuple, collector, tive);
 		}
+		
+		doMetricsStop(collector);
 	}
 
 	static public class MakeKeyRawValue extends BaseFunction {
@@ -274,5 +282,10 @@ public class TriMapFunc extends StormBaseFunction {
 		public void execute(TridentTuple tuple, TridentCollector collector) {
 			collector.emit(new ArrayList<Object>(tuple.getValues()));
 		}		
+	}
+
+	@Override
+	public String getMetricsAnnotation() {
+		return metricsAnnotation;
 	}
 }
