@@ -10,6 +10,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.client.Durability;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
 import org.apache.hadoop.hbase.client.Put;
@@ -54,6 +55,8 @@ public class HBaseState<T> implements IBackingMap<T> {
         public Serializer key_serializer = null;
         public String sep = "|";        
         public String columnQualifier = "cq";
+        public boolean autoFlush = false;
+        public boolean skipWAL = false;
     }
 	
 	public static StateFactory fromJSONArgs(HashMap args) {
@@ -101,7 +104,12 @@ public class HBaseState<T> implements IBackingMap<T> {
 		if (args.get("columnQualifier") != null) {
 			opts.columnQualifier = (String) args.get("columnQualifier");
 		}
-				
+		if (args.get("autoFlush") != null) {
+			opts.autoFlush = ((String) args.get("autoFlush")).equalsIgnoreCase("true");
+		}
+		if (args.get("skipWAL") != null) {
+			opts.skipWAL = ((String) args.get("skipWAL")).equalsIgnoreCase("true");
+		}
 		
 		if (storage_type.equalsIgnoreCase("NON_TRANSACTIONAL")) {
 			return nonTransactional(tableName, columnFamily, opts);
@@ -223,7 +231,9 @@ public class HBaseState<T> implements IBackingMap<T> {
         Configuration config = HBaseConfiguration.create();
         try {
 			table = new HTable(config, _tableName);
-			table.setAutoFlush(false);
+			if (!opts.autoFlush) {
+				table.setAutoFlush(false);
+			}
 		} catch (IOException e) {
 			throw new RuntimeException(e);
 		}
@@ -301,6 +311,10 @@ public class HBaseState<T> implements IBackingMap<T> {
     		// Flatten the key
     		String flat = flattenKey(keys.get(i));
     		Put p = new Put(Bytes.toBytes(flat));
+    		if (_opts.skipWAL) {
+    			p.setDurability(Durability.SKIP_WAL);
+    		}
+    		
     		
     		// Put the value.
     		T val = vals.get(i);
@@ -316,7 +330,9 @@ public class HBaseState<T> implements IBackingMap<T> {
     	
     	try {
 			table.put(puts);
-			table.flushCommits();
+			if (!_opts.autoFlush) {
+				table.flushCommits();
+			}
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

@@ -3,6 +3,7 @@ package org.apache.pig.piggybank.squeal.metrics;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.Map;
+
 import backtype.storm.hooks.ITaskHook;
 import backtype.storm.hooks.info.BoltAckInfo;
 import backtype.storm.hooks.info.BoltExecuteInfo;
@@ -20,6 +21,7 @@ public class StatsHook implements ITaskHook {
 	private String compId = "unknown";
 	private String stormId = "unknown";
 	private Object hostname = "unknown";
+	private Integer worker_port;
 
 	@Override
 	public void prepare(Map conf, TopologyContext context) {
@@ -32,12 +34,13 @@ public class StatsHook implements ITaskHook {
 			compId = context.getThisComponentId();
 			stormId = (String) conf.get("storm.id");
 			hostname = InetAddress.getLocalHost().getHostName();
+			worker_port = context.getThisWorkerPort();
 		} catch (Exception e) {
 			// Leave things as unknown on error.
 		}
 		
 		// Send an initial declare message.
-		send("DECL", hostname, stormId, taskId, taskIdx, compId);	
+		send("DECL", hostname, stormId, taskId, taskIdx, compId, worker_port);	
 	}
 
 	@Override

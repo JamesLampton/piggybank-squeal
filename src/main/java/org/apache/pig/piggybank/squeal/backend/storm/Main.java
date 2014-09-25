@@ -39,6 +39,7 @@ import org.apache.pig.impl.plan.DependencyOrderWalker;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.MultiMap;
 import org.apache.pig.impl.util.ObjectSerializer;
+import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapperUtils.LimitedOutstandingInvocationHandler;
 import org.apache.pig.piggybank.squeal.backend.storm.io.WritableKryoSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper;
@@ -195,14 +196,18 @@ public class Main {
 			if (sop.getType() == StormOper.OpType.SPOUT) {
 				// Wrap the spout to address STORM-368
 				IRichSpout spout_proxy;
-				if (pc.getProperties().getProperty(DISABLE_SPOUT_WRAPPER_KEY, "false").equalsIgnoreCase("true")) {
+				if (pc.getProperties().getProperty(DISABLE_SPOUT_WRAPPER_KEY, "true").equalsIgnoreCase("true")) {
 					spout_proxy = sop.getLoadFunc();
 				} else {
 					spout_proxy = LimitedOutstandingInvocationHandler.newInstance(sop.getLoadFunc());
 				}
 				
 //				output = topology.newStream(sop.getOperatorKey().toString(), sop.getLoadFunc());
-				output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
+				
+//				output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
+				// Use a rich spout batch executor that fixes parts of Storm-368 and tracks metrics.
+				output = topology.newStream(sop.getOperatorKey().toString(), 
+						new ImprovedRichSpoutBatchExecutor(spout_proxy));
 				
 				System.out.println("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
 				output = output.name(sop.getLoadFunc().getClass().getSimpleName());

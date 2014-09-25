@@ -52,10 +52,11 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
     	long start_ts = 0;
     	int hit_count = 0;
     	int miss_count = 0;
+    	int null_count = 0;
     	
     	if (mt != null && r.nextDouble() <= sample_rate) {
     		collect_metrics = true;
-    		start_ts = System.currentTimeMillis();
+    		start_ts = System.nanoTime();
 		}
     	
         Map<List<Object>, T> results = new HashMap<List<Object>, T>();
@@ -65,7 +66,6 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
             	hit_count += 1;
                 results.put(key, _cache.get(key));
             } else {
-            	miss_count += 1;
                 toGet.add(key);
             }
         }
@@ -74,6 +74,11 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
         for(int i=0; i<toGet.size(); i++) {
             List<Object> key = toGet.get(i);
             T val = fetchedVals.get(i);
+            if (val == null) {
+            	null_count += 1;
+            } else {
+            	miss_count += 1;
+            }
             _cache.put(key, val);
             results.put(key, val);
         }
@@ -84,8 +89,8 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
         }
         
         if (collect_metrics) {
-        	long stop_ts = System.currentTimeMillis();
-        	send("MULTI_GET", stop_ts - start_ts, hit_count, miss_count, _delegate.toString() + "\n");
+        	long stop_ts = System.nanoTime();
+        	send("MULTI_GET", stop_ts - start_ts, hit_count, miss_count, null_count, _delegate.toString() + "\n");
         }
         
         return ret;
@@ -98,14 +103,14 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
     	
     	if (mt != null && r.nextDouble() <= sample_rate) {
     		collect_metrics = true;
-    		start_ts = System.currentTimeMillis();
+    		start_ts = System.nanoTime();
 		}
     	
         cache(keys, values);
         _delegate.multiPut(keys, values);
         
         if (collect_metrics) {
-        	long stop_ts = System.currentTimeMillis();
+        	long stop_ts = System.nanoTime();
         	send("MULTI_PUT", stop_ts - start_ts, keys.size(), _delegate.toString() + "\n");
         }
     }

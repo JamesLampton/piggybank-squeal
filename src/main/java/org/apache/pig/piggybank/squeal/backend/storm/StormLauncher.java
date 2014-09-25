@@ -178,6 +178,8 @@ public class StormLauncher extends Launcher {
             sp.UDFs.add("org.apache.hadoop.util.PlatformName");
             sp.UDFs.add("com.google.protobuf.ServiceException");
             
+            sp.UDFs.add("org.apache.commons.collections.map.UnmodifiableMap");
+            
             // Add one or more of these.
             if (pc.getClassLoader().getResource("hadoop-site.xml") != null) {
             	pc.addScriptFile("hadoop-site.xml", "hadoop-site.xml");
@@ -185,8 +187,6 @@ public class StormLauncher extends Launcher {
             if (pc.getClassLoader().getResource("core-site.xml") != null) {
             	pc.addScriptFile("core-site.xml", "core-site.xml");
             }
-            
-            
             
             // META-INF/services/org.apache.hadoop.fs.FileSystem gets hosed above per:
             // http://stackoverflow.com/questions/17265002/hadoop-no-filesystem-for-scheme-file

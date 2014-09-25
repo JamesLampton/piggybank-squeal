@@ -1,5 +1,6 @@
 package org.apache.pig.piggybank.squeal.backend.storm.oper;
 
+import java.net.InetAddress;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
@@ -18,6 +19,7 @@ import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.apache.pig.data.SchemaTupleBackend;
 import org.apache.pig.impl.PigContext;
 
+import backtype.storm.task.TopologyContext;
 import storm.trident.operation.BaseFunction;
 import storm.trident.operation.TridentCollector;
 import storm.trident.operation.TridentOperationContext;
@@ -28,6 +30,11 @@ public abstract class StormBaseFunction extends BaseFunction {
 	protected IMetricsTransport mt;
 	double sample_rate = 0.1;
 	private Random r;
+	private int taskId;
+	private int taskIdx;
+	private String compId;
+	private String stormId;
+	private String hostname;
 	static public final String SAMPLE_RATE_KEY = "pig.streaming.metrics.sample.rate";
 
 	public StormBaseFunction(PigContext pc) {
@@ -78,6 +85,51 @@ public abstract class StormBaseFunction extends BaseFunction {
 		// Pull a metrics transport if configured.
 		mt = MetricsTransportFactory.getInstance(pc);
 		r = new Random();
+		
+		// Pull the component name and any other information from the conf.
+		try {
+			TopologyContext topo_context = MonkeyPatch.getTopologyContext(context);
+			taskId = topo_context.getThisTaskId();
+			taskIdx = topo_context.getThisTaskIndex();
+			compId = topo_context.getThisComponentId();
+			stormId = (String) conf.get("storm.id");
+			hostname = InetAddress.getLocalHost().getHostName();
+		} catch (Exception e) {
+			// Leave things as unknown on error.
+		}
+
+		// Send an initial declare message.
+		if (mt != null) {
+			_send(null, null, new Object[] {"DECL_FUNC", hostname, stormId, taskId, taskIdx, compId, getMetricsAnnotation()});
+		}
+	}
+	
+	void _send(Object[] appends, Object[] appends2, Object[] msg) {
+		StringBuilder sb = new StringBuilder();
+
+		sb.append(System.currentTimeMillis());
+		sb.append("\t");
+		sb.append(taskId);
+
+		for (Object o : msg) {
+			sb.append("\t");
+			sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
+		}
+		if (appends != null) {
+			for (Object o : appends) {
+				sb.append("\t");
+				sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
+			}
+		}
+		if (appends2 != null) {
+			for (Object o : appends2) {
+				sb.append("\t");
+				sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
+			}
+		}
+		sb.append("\n");
+
+		mt.send(sb.toString().getBytes());
 	}
 	
 	class MetricsCollector implements TridentCollector {
@@ -90,7 +142,7 @@ public abstract class StormBaseFunction extends BaseFunction {
 		private Object[] appends;
 
 		public MetricsCollector(TridentCollector collector, Object[] appends) {
-			start_ts = System.currentTimeMillis();
+			start_ts = System.nanoTime();
 			this.appends = appends;
 			wrapped = collector;
 		}
@@ -118,31 +170,13 @@ public abstract class StormBaseFunction extends BaseFunction {
 		}
 		
 		public void collectMetrics(Object[] appends2) {
-			long stop_ts = System.currentTimeMillis();
+			long stop_ts = System.nanoTime();
 
 			send(appends2, getMetricsAnnotation(), stop_ts-start_ts, pos_count, neg_count, unkn_count);
 		}
 		
 		void send(Object[] appends2, Object... msg) {
-			StringBuilder sb = new StringBuilder();
-
-			sb.append(System.currentTimeMillis());
-
-			for (Object o : msg) {
-				sb.append("\t");
-				sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
-			}
-			for (Object o : appends) {
-				sb.append("\t");
-				sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
-			}
-			for (Object o : appends2) {
-				sb.append("\t");
-				sb.append(o == null ? "" : o.toString().replace("\n", " ").replace("\t", " "));
-			}
-			sb.append("\n");
-
-			mt.send(sb.toString().getBytes());
+			_send(appends, appends2, msg);
 		}
 	}
 	

@@ -53,7 +53,13 @@ public class SignedPigSpoutWrapper extends SpoutWrapper {
 		public void execute(TridentTuple tuple, TridentCollector collector) {
 			byte[] buf;
 			try {
-				buf = DataType.toBytes(tuple.get(0));
+//				System.err.println("XXXX: " + tuple.get(0).getClass().getComponentType() + " " + tuple.get(0));
+				Object o = tuple.get(0);
+				if (byte[].class.isAssignableFrom(o.getClass())) {
+					buf = (byte[]) o;
+				} else {
+					buf = DataType.toBytes(tuple.get(0));
+				}
 			} catch (ExecException e) {
 				throw new RuntimeException(e);
 			}
