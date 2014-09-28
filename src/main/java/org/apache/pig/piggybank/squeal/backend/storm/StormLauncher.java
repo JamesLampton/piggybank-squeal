@@ -256,6 +256,9 @@ public class StormLauncher extends Launcher {
             printer.setVerbose(verbose);
             
             printer.visit();
+            
+            Main m = new Main(pc, sp);
+            m.explain(ps);
         } else {
             ps.println("#--------------------------------------------------");
             ps.println("# Storm Plan                                       ");

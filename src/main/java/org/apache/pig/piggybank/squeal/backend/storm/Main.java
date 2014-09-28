@@ -5,6 +5,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
+import java.io.PrintStream;
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -58,7 +59,11 @@ import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
+import backtype.storm.generated.Bolt;
 import backtype.storm.generated.InvalidTopologyException;
+import backtype.storm.generated.SpoutSpec;
+import backtype.storm.generated.StormTopology;
+import backtype.storm.generated.StreamInfo;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
@@ -104,8 +109,6 @@ public class Main {
 		splan = (SOperPlan) ObjectSerializer.deserialize(pc.getProperties().getProperty(StormLauncher.PLANKEY));
 		t = setupTopology(pc);
 	}
-	
-	
 		
 	class DepWalker extends SOpPlanVisitor {
 
@@ -345,6 +348,50 @@ public class Main {
 //		}
 		
 		return topology;
+	}
+	
+	void explain(PrintStream ps) {
+		ps.println("#--------------------------------------------------");
+        ps.println("# Storm Topology                                   ");
+        ps.println("#--------------------------------------------------");
+        
+        StormTopology topo = t.build();
+        
+        ps.println("# Spouts:                                          ");
+        
+        Map<String, SpoutSpec> spouts = topo.get_spouts();
+        for (Entry<String, SpoutSpec> ent : spouts.entrySet()) {
+        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
+        	
+        	SpoutSpec spec = ent.getValue();
+        	
+        	ps.println("Streams: ");
+        	Map<String, StreamInfo> streams = spec.get_common().get_streams();
+        	for (Entry<String, StreamInfo> ent2 : streams.entrySet()) {
+        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
+        	}
+        	
+        	ps.println("#--------------------------------------------------");
+        }
+        
+        ps.println("# Bolts:                                           ");
+        
+        for (Entry<String, Bolt> ent : topo.get_bolts().entrySet()) {
+        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
+        	
+        	ps.println("Inputs: ");
+        	Map inputs = ent.getValue().get_common().get_inputs();        	
+			for (Object k : inputs.keySet()) {
+        		ps.println("** " + k + " " + inputs.get(k));
+        	}
+        	
+        	ps.println("Outputs: ");
+        	for (Entry<String, StreamInfo> ent2 : ent.getValue().get_common().get_streams().entrySet()) {
+        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
+        	}
+        	
+        	ps.println("#--------------------------------------------------");
+        }
 	}
 	
 	void runTestCluster(String topology_name, long wait_time, boolean debug) {
