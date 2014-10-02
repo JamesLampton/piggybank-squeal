@@ -6,6 +6,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
@@ -129,13 +130,17 @@ public class NettyMetricsTransport extends AbstractMetricsTransport {
 		
 		final Thread dumper = new Thread() {
 			public void run() {
-				String buf;
+				ArrayList<String> drainToMe = new ArrayList<String>();
 				
 				while (true) {
 					try {
-						buf = q.take();
-						os.write(buf.getBytes());
-						os.flush();
+						drainToMe.clear();
+						q.drainTo(drainToMe, 1024);
+						
+						for (String buf : drainToMe) {
+							os.write(buf.getBytes());
+							os.flush();
+						}
 					} catch (Exception e) {
 						
 					}

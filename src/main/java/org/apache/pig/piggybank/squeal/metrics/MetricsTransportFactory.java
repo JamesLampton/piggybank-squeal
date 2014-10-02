@@ -10,6 +10,10 @@ public class MetricsTransportFactory {
 	public static final String METRICS_TRANSPORT_KEY = "pig.streaming.metrics.transport.class";
 	private static final ConcurrentHashMap<String, IMetricsTransport> instances = new ConcurrentHashMap<String, IMetricsTransport>();
 	
+	public static boolean hasMetricsTransport(Map props) {
+		return props.containsKey(METRICS_TRANSPORT_KEY);
+	}
+	
 	synchronized public static IMetricsTransport getInstance(Map props, ClassLoader cl) {
 		// Determine the class from the current PigContext.
 		String klazz = (String) props.get(METRICS_TRANSPORT_KEY);

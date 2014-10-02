@@ -17,20 +17,31 @@ import storm.trident.tuple.TridentTuple;
 public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 	private CombinerAggregator<Writable> agg;
 	private boolean trackLast;
+	private boolean identityInit;
 	static public final Text CUR = new Text("cur");
 	static public final Text LAST = new Text("last");
 	
-	public CombineWrapper(CombinerAggregator agg, boolean trackLast) {
+	public CombineWrapper(CombinerAggregator agg, boolean trackLast, boolean identityInit) {
 		this.agg = (CombinerAggregator<Writable>) agg;
 		this.trackLast = trackLast;
+		this.identityInit = identityInit;
 	}
 
+	public CombineWrapper(CombinerAggregator agg, boolean trackLast) {
+		this(agg, trackLast, false);
+	}
+	
 	public CombineWrapper(CombinerAggregator agg) {
 		this(agg, false);
 	}
 
 	@Override
 	public MapIdxWritable init(TridentTuple tuple) {
+//		System.out.println("init: " + tuple + " identityInit: " + identityInit + " agg: " + agg);
+		if (identityInit) {
+			return (MapIdxWritable) tuple.get(0);
+		}
+		
 		MapIdxWritable ret = zero();
 		ret.put(CUR, agg.init(tuple));
 		return ret;
@@ -45,14 +56,18 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 	
 	@Override
 	public MapIdxWritable combine(MapIdxWritable val1, MapIdxWritable val2) {
-//		System.out.println("combine: " + val1 + " " + val2);
+//		System.out.println("	combine: " + val1 + " " + val2);
 		MapIdxWritable ret = zero();
 
 		// Assuming that val1 came from the cache/state.
 		if (trackLast && val1.get(CUR) != null) {
 			ret.put(LAST, val1.get(CUR));
 		}
-		ret.put(CUR, agg.combine(getDefault(val1, CUR), getDefault(val2, CUR)));
+		Writable combined = agg.combine(getDefault(val1, CUR), getDefault(val2, CUR));
+		if (combined == null) {
+			throw new RuntimeException("null combine: " + val1 + " " + val2);
+		}
+		ret.put(CUR, combined);
 			
 		return ret;
 	}
@@ -142,5 +157,25 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 		}
 
 		return state.getTupleBatches((IPigIdxState) cws.get(LAST));
+	}
+	
+	public static class Factory {
+		private CombinerAggregator agg;
+
+		public Factory(CombinerAggregator agg) {
+			this.agg = agg;
+		}
+		
+		public CombineWrapper getStage1Aggregator() {
+			return new CombineWrapper(agg, false);
+		}
+		
+		public CombineWrapper getStage2Aggregator() {
+			return new CombineWrapper(agg, false, true);
+		}
+		
+		public CombineWrapper getStoreAggregator() {
+			return new CombineWrapper(agg, true);
+		}
 	}
 }

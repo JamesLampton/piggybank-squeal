@@ -6,18 +6,12 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.PrintStream;
-import java.io.Serializable;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.Semaphore;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -53,6 +47,8 @@ import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
+import org.apache.pig.piggybank.squeal.metrics.TransportMeasureHelper;
 import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;
@@ -70,7 +66,11 @@ import backtype.storm.utils.Utils;
 import storm.trident.Stream;
 import storm.trident.TridentState;
 import storm.trident.TridentTopology;
+import storm.trident.fluent.ChainedFullAggregatorDeclarer;
+import storm.trident.fluent.ChainedPartitionAggregatorDeclarer;
+import storm.trident.operation.BaseFilter;
 import storm.trident.state.map.MapCombinerAggStateUpdater;
+import storm.trident.tuple.TridentTuple;
 import storm.trident.util.TridentUtils;
 
 public class Main {
@@ -109,6 +109,22 @@ public class Main {
 		splan = (SOperPlan) ObjectSerializer.deserialize(pc.getProperties().getProperty(StormLauncher.PLANKEY));
 		t = setupTopology(pc);
 	}
+	
+	static class BetterDebug extends BaseFilter {
+
+		private String prepend;
+
+		public BetterDebug(String prepend) {
+			this.prepend = prepend;
+		}
+		
+		@Override
+		public boolean isKeep(TridentTuple tuple) {
+			System.out.println("DEBUG " + prepend + ":" + tuple.toString());
+	        return true;
+		}
+		
+	}
 		
 	class DepWalker extends SOpPlanVisitor {
 
@@ -116,11 +132,13 @@ public class Main {
 		private TridentTopology topology;
 		private Map<StormOper, Stream> sop_streams = new HashMap<StormOper, Stream>();
 		private PigContext pc;
+		boolean instrumentTransport;
 		
 		protected DepWalker(TridentTopology topology, SOperPlan plan, PigContext pc) {
 			super(plan, new DependencyOrderWalker<StormOper, SOperPlan>(plan));
 			this.topology = topology;
 			this.pc = pc;
+			instrumentTransport = MetricsTransportFactory.hasMetricsTransport(pc.getProperties());
 		}
 		
 		Stream processMapSOP(StormOper sop) throws CloneNotSupportedException {
@@ -142,6 +160,11 @@ public class Main {
 				
 				if (sop.getShuffleBefore()) {
 					input = input.shuffle();
+				}
+				
+				// Pull and record timestamp.
+				if (instrumentTransport) {
+					input = TransportMeasureHelper.extractAndRecord(input);
 				}
 				
 				System.out.println("Setting output name: " + sop.name());
@@ -229,6 +252,11 @@ public class Main {
 				
 //				output.each(output.getOutputFields(), new Debug());
 				
+				// Add source and timestamp.
+				if (instrumentTransport) {
+					output = TransportMeasureHelper.instrument(output);
+				}
+				
 				sop_streams.put(sop, output);
 
 				return;
@@ -257,48 +285,77 @@ public class Main {
 							new TriMapFunc.MakeKeyRawValue(),
 							group_key
 						);
-//				input.each(input.getOutputFields(), new Debug());
+				
+				// TRACE
+//				input.each(input.getOutputFields(), new BetterDebug("TRACE1"));
+//				System.out.println("XXXXXXXX " + input.getOutputFields());
 				
 				// Setup the aggregator.
-				// We want one aggregator to handle the actual combine.
-				CombineWrapper agg = null;
+				// We want one aggregator to handle the actual combine on a partitioned stream.
 				// We want this one to keep track of LAST -- it's used with storage and right before reducedelta.
-				CombineWrapper store_agg = null;
+				CombineWrapper.Factory agg_fact = null;				
 				if (sop.getType() == StormOper.OpType.BASIC_PERSIST) {
 					if (sop.getWindowOptions() == null) {
-						agg = new CombineWrapper(new TriBasicPersist(), false);
-						store_agg = new CombineWrapper(new TriBasicPersist(), true);
+						agg_fact = new CombineWrapper.Factory(new TriBasicPersist());
 					} else {
 						// We'll be windowing things.
-						agg = new CombineWrapper(new TriWindowCombinePersist(sop.getWindowOptions()), false);
-						store_agg = new CombineWrapper(new TriWindowCombinePersist(sop.getWindowOptions()), true); 
+						agg_fact = new CombineWrapper.Factory(new TriWindowCombinePersist(sop.getWindowOptions()));
 					}
 				} else {					
 					// We need to trim things from the plan re:PigCombiner.java
 					POPackage pack = (POPackage) sop.getPlan().getRoots().get(0);
 					sop.getPlan().remove(pack);
 
-					agg = new CombineWrapper(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType), false);
-					store_agg = new CombineWrapper(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType), true);
+					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
+				}
+				
+				// Partition and Aggregate.
+				ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
+						.chainedAgg()
+							.partitionAggregate(orig_input_fields, agg_fact.getStage1Aggregator(), new Fields("stage1_vl"));
+
+				// Handle timestamps.
+				if (instrumentTransport) {
+					part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain);
+				}
+				
+				Stream aggregated_part = part_agg_chain.chainEnd();
+
+				// TRACE
+//				aggregated_part.each(aggregated_part.getOutputFields(), new BetterDebug("TRACE2"));
+//				System.out.println("XXXXXZZZ " + aggregated_part.getOutputFields());
+				
+				// Group and Aggregate.
+				ChainedFullAggregatorDeclarer agg_chain = aggregated_part.groupBy(group_key)
+						.chainedAgg()
+							.aggregate(new Fields("stage1_vl"), agg_fact.getStage2Aggregator(), output_fields);
+				
+				// Handle the times after the groupBy (remote side).
+				if (instrumentTransport) {
+					agg_chain = TransportMeasureHelper.instrument(agg_chain);
 				}
 
-				// Group and aggregate
-				Stream aggregated = input.groupBy(group_key)
-						.aggregate(orig_input_fields, agg, output_fields);
-//				aggregated.each(aggregated.getOutputFields(), new Debug());
+				Stream aggregated = agg_chain.chainEnd();
 				
+				// TRACE
+//				aggregated.each(aggregated.getOutputFields(), new BetterDebug("TRACE3"));
+//				System.out.println("XXXXXYYY " + aggregated.getOutputFields());
+				
+				// Persist
 				TridentState gr_persist = aggregated
 						.partitionPersist(
 									sop.getStateFactory(pc),
 									TridentUtils.fieldsUnion(group_key, output_fields),
-									new MapCombinerAggStateUpdater(store_agg, group_key, output_fields),
+									new MapCombinerAggStateUpdater(agg_fact.getStoreAggregator(), group_key, output_fields),
 									TridentUtils.fieldsConcat(group_key, output_fields)
 								);
 				if (sop.getParallelismHint() > 0) {
 					gr_persist.parallelismHint(sop.getParallelismHint());
 				}
 				output = gr_persist.newValuesStream();
-//				output.each(output.getOutputFields(), new Debug());
+				
+				// TRACE
+//				output.each(output.getOutputFields(), new BetterDebug("TRACE4"));
 			
 				// Re-alias the raw as the key.
 				output = output.each(
@@ -311,6 +368,11 @@ public class Main {
 				output = output.project(new Fields(orig_input_fields.get(0), output_fields.get(0)));
 //				output.each(output.getOutputFields(), new Debug());
 			} else if (sop.getType() == StormOper.OpType.REDUCE_DELTA) {
+				// Pull and record timestamp.
+				if (instrumentTransport) {
+					input = TransportMeasureHelper.extractAndRecord(input);
+				}
+				
 				// Need to reduce
 				output = input.each(
 							input.getOutputFields(), 
@@ -318,6 +380,11 @@ public class Main {
 							output_fields
 						).project(output_fields);
 //				output.each(output.getOutputFields(), new Debug());
+			}
+			
+			// Add source and timestamp.
+			if (instrumentTransport) {
+				output = TransportMeasureHelper.instrument(output);
 			}
 			
 			sop_streams.put(sop, output);
