@@ -130,7 +130,7 @@ public class Main {
 
 		private static final String DISABLE_SPOUT_WRAPPER_KEY = "pig.streaming.disable.spout.wraper";
 		private TridentTopology topology;
-		private Map<StormOper, Stream> sop_streams = new HashMap<StormOper, Stream>();
+		private Map<StormOper, List<Stream>> sop_streams = new HashMap<StormOper, List<Stream>>();
 		private PigContext pc;
 		boolean instrumentTransport;
 		
@@ -141,7 +141,7 @@ public class Main {
 			instrumentTransport = MetricsTransportFactory.hasMetricsTransport(pc.getProperties());
 		}
 		
-		Stream processMapSOP(StormOper sop) throws CloneNotSupportedException {
+		List<Stream> processMapSOP(StormOper sop) throws CloneNotSupportedException {
 			Fields output_fields = sop.getOutputFields();			
 			List<Stream> outputs = new ArrayList<Stream>();
 			Stream output;
@@ -150,57 +150,54 @@ public class Main {
 			// This handles the cases for multiple inputs without breaking the plan apart.
 			for (PhysicalOperator po : sop.getPlan().getRoots()) {
 				StormOper input_sop = splan.getInputSOP((POLoad) po);
-//				splan.getPLSpoutLink((POLoad) po);
-				Stream input = sop_streams.get(input_sop);
 				
-				if (input == null) {
+				List<Stream> inputs = sop_streams.get(input_sop);
+				if (inputs == null) {
 					// Probably a static load.
 					continue;
 				}
 				
-				if (sop.getShuffleBefore()) {
-					input = input.shuffle();
-				}
+				for (Stream input : inputs) {
 				
-				// Pull and record timestamp.
-				if (instrumentTransport) {
-					input = TransportMeasureHelper.extractAndRecord(input);
-				}
-				
-				System.out.println("Setting output name: " + sop.name());
-				input = input.name(sop.name());
-				
-				MultiMap<PhysicalOperator, PhysicalOperator> opmap = new MultiMap<PhysicalOperator, PhysicalOperator>();
-				sop.getPlan().setOpMap(opmap);
-				PhysicalPlan clonePlan = sop.getPlan().clone();
-				if (opmap.get(po).size() > 1) {
-					throw new RuntimeException("Didn't expect activeRoot to have multiple values in cloned plan!");
-				}
-				PhysicalOperator cloneActiveRoot = opmap.get(po).get(0);
-				
-//				System.out.println("processMapSOP -- input: " + input + " " + input_sop + " " + po);
-				output = input.each(
+					if (sop.getShuffleBefore()) {
+						input = input.shuffle();
+					}
+
+					// Pull and record timestamp.
+					if (instrumentTransport) {
+						input = TransportMeasureHelper.extractAndRecord(input);
+					}
+
+					System.out.println("Setting output name: " + sop.name());
+					input = input.name(sop.name());
+
+					MultiMap<PhysicalOperator, PhysicalOperator> opmap = new MultiMap<PhysicalOperator, PhysicalOperator>();
+					sop.getPlan().setOpMap(opmap);
+					PhysicalPlan clonePlan = sop.getPlan().clone();
+					if (opmap.get(po).size() > 1) {
+						throw new RuntimeException("Didn't expect activeRoot to have multiple values in cloned plan!");
+					}
+					PhysicalOperator cloneActiveRoot = opmap.get(po).get(0);
+
+					//				System.out.println("processMapSOP -- input: " + input + " " + input_sop + " " + po);
+					output = input.each(
 							input.getOutputFields(),
 							new TriMapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
 							output_fields
-						).project(output_fields);
-				outputs.add(output);
-				
-				if (sop.getParallelismHint() != 0) {
-					output.parallelismHint(sop.getParallelismHint());
+							).project(output_fields);
+					outputs.add(output);
+
+					if (sop.getParallelismHint() != 0) {
+						output.parallelismHint(sop.getParallelismHint());
+					}
 				}
 			}
+
+//			// Optional debug.
+////		output.each(output.getOutputFields(), new Debug());
+
 			
-			if (outputs.size() == 1) {
-				output = outputs.get(0);
-			} else {
-				output = topology.merge(outputs);
-			}
-			
-			// Optional debug.
-//			output.each(output.getOutputFields(), new Debug());
-			
-			return output;
+			return outputs;
 		}
 		
 		List<Stream> getInputs(StormOper sop) {
@@ -209,14 +206,14 @@ public class Main {
 			
 			// Link to the previous streams.
 			for (StormOper pre_sop : splan.getPredecessors(sop)) {
-				inputs.add(sop_streams.get(pre_sop));
+				inputs.addAll(sop_streams.get(pre_sop));
 			}
 
 			return inputs;
 		}
 
 		public void visitSOp(StormOper sop) throws VisitorException {
-			Stream output = null;
+			List<Stream> outputs = new ArrayList<Stream>();
 			Fields output_fields = sop.getOutputFields();
 			
 			if (sop.getType() == StormOper.OpType.SPOUT) {
@@ -228,11 +225,8 @@ public class Main {
 					spout_proxy = LimitedOutstandingInvocationHandler.newInstance(sop.getLoadFunc());
 				}
 				
-//				output = topology.newStream(sop.getOperatorKey().toString(), sop.getLoadFunc());
-				
-//				output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
 				// Use a rich spout batch executor that fixes parts of Storm-368 and tracks metrics.
-				output = topology.newStream(sop.getOperatorKey().toString(), 
+				Stream output = topology.newStream(sop.getOperatorKey().toString(), 
 						new ImprovedRichSpoutBatchExecutor(spout_proxy));
 				
 				System.out.println("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
@@ -257,38 +251,28 @@ public class Main {
 					output = TransportMeasureHelper.instrument(output);
 				}
 				
-				sop_streams.put(sop, output);
+				outputs.add(output);
+				
+				sop_streams.put(sop, outputs);
 
 				return;
 			}
 
 			// Default value for non-maps.
-			Stream input = getInputs(sop).get(0);
+			List<Stream> inputs = getInputs(sop);
 			
 			// Create the current operator on the topology
 			if (sop.getType() == StormOper.OpType.MAP) {
 				try {
-					output = processMapSOP(sop);
+					outputs = processMapSOP(sop);
 //					output.each(output.getOutputFields(), new Debug());
 				} catch (CloneNotSupportedException e) {
 					throw new RuntimeException(e);
 				}
 			} else if (sop.getType() == StormOper.OpType.BASIC_PERSIST || sop.getType() == StormOper.OpType.COMBINE_PERSIST) {
-				System.out.println("Setting output name: " + sop.name());
-				input = input.name(sop.name());
-
-				// We need to encode the key into a value (sans index) to group properly.
-				Fields orig_input_fields = input.getOutputFields();
-				Fields group_key = new Fields(input.getOutputFields().get(0) + "_raw");
-				input = input.each(
-							new Fields(input.getOutputFields().get(0)),
-							new TriMapFunc.MakeKeyRawValue(),
-							group_key
-						);
 				
-				// TRACE
-//				input.each(input.getOutputFields(), new BetterDebug("TRACE1"));
-//				System.out.println("XXXXXXXX " + input.getOutputFields());
+				// Accumulate streams before groupby.
+				List<Stream> intermed = new ArrayList<Stream>();
 				
 				// Setup the aggregator.
 				// We want one aggregator to handle the actual combine on a partitioned stream.
@@ -309,18 +293,40 @@ public class Main {
 					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
 				}
 				
-				// Partition and Aggregate.
-				ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
-						.chainedAgg()
+				Fields orig_input_fields = inputs.get(0).getOutputFields();
+				Fields group_key = new Fields(orig_input_fields.get(0) + "_raw");
+				
+				for (Stream input : inputs) {						
+					System.out.println("Setting output name: " + sop.name());
+					input = input.name(sop.name());
+
+					// We need to encode the key into a value (sans index) to group properly.
+					input = input.each(
+								new Fields(input.getOutputFields().get(0)),
+								new TriMapFunc.MakeKeyRawValue(),
+								group_key
+							);
+
+					// TRACE
+					//				input.each(input.getOutputFields(), new BetterDebug("TRACE1"));
+					//				System.out.println("XXXXXXXX " + input.getOutputFields());
+
+					// Partition and Aggregate.
+					ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
+							.chainedAgg()
 							.partitionAggregate(orig_input_fields, agg_fact.getStage1Aggregator(), new Fields("stage1_vl"));
 
-				// Handle timestamps.
-				if (instrumentTransport) {
-					part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain);
+					// Handle timestamps.
+					if (instrumentTransport) {
+						part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain);
+					}
+
+					intermed.add(part_agg_chain.chainEnd());
 				}
 				
-				Stream aggregated_part = part_agg_chain.chainEnd();
-
+				// Merge things before doing global group by.
+				Stream aggregated_part = topology.merge(intermed);
+				
 				// TRACE
 //				aggregated_part.each(aggregated_part.getOutputFields(), new BetterDebug("TRACE2"));
 //				System.out.println("XXXXXZZZ " + aggregated_part.getOutputFields());
@@ -352,7 +358,7 @@ public class Main {
 				if (sop.getParallelismHint() > 0) {
 					gr_persist.parallelismHint(sop.getParallelismHint());
 				}
-				output = gr_persist.newValuesStream();
+				Stream output = gr_persist.newValuesStream();
 				
 				// TRACE
 //				output.each(output.getOutputFields(), new BetterDebug("TRACE4"));
@@ -367,30 +373,38 @@ public class Main {
 				// Strip down to the appropriate values
 				output = output.project(new Fields(orig_input_fields.get(0), output_fields.get(0)));
 //				output.each(output.getOutputFields(), new Debug());
-			} else if (sop.getType() == StormOper.OpType.REDUCE_DELTA) {
-				// Pull and record timestamp.
-				if (instrumentTransport) {
-					input = TransportMeasureHelper.extractAndRecord(input);
-				}
 				
-				// Need to reduce
-				output = input.each(
+				outputs.add(output);
+			} else if (sop.getType() == StormOper.OpType.REDUCE_DELTA) {
+				
+				for (Stream input : inputs) {
+					// Pull and record timestamp.
+					if (instrumentTransport) {
+						input = TransportMeasureHelper.extractAndRecord(input);
+					}
+
+					// Need to reduce
+					Stream output = input.each(
 							input.getOutputFields(), 
 							new TriReduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
 							output_fields
-						).project(output_fields);
-//				output.each(output.getOutputFields(), new Debug());
+							).project(output_fields);
+					//output.each(output.getOutputFields(), new Debug());
+					outputs.add(output);
+				}
 			}
 			
 			// Add source and timestamp.
 			if (instrumentTransport) {
-				output = TransportMeasureHelper.instrument(output);
+				for (int i = 0; i < outputs.size(); i++) {
+					outputs.set(i, TransportMeasureHelper.instrument(outputs.get(i)));	
+				}
 			}
 			
-			sop_streams.put(sop, output);
+			sop_streams.put(sop, outputs);
 			
-			System.out.println(sop.name() + " input fields: " + input.getOutputFields());
-			System.out.println(sop.name() + " output fields: " + output.getOutputFields());
+			System.out.println(sop.name() + " input fields: " + inputs.get(0).getOutputFields());
+			System.out.println(sop.name() + " output fields: " + outputs.get(0).getOutputFields());
 		}
 	};
 	
