@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.net.InetAddress;
@@ -31,7 +49,6 @@ import storm.trident.util.TridentUtils;
 // Taken mostly from RichSpoutBatchExecutor.
 public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
 	public static final String MAX_BATCH_SIZE_CONF = "topology.spout.max.batch.size";
-	static public final String SAMPLE_RATE_KEY = "pig.streaming.metrics.sample.rate";
 	static public final String RATE_BASE_PATH_KEY = "topology.spout.max.batch.size.zkpath";
 	static public final int DEFAULT_MAX_BATCH_SIZE = 1000;
 
@@ -105,7 +122,6 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         long lastRotate = System.currentTimeMillis();
         long rotateTime;
 		private IMetricsTransport mt;
-		private double sample_rate = 0.1;
 		private int taskId;
 		private int taskIdx;
 		private String compId;
@@ -126,12 +142,6 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
             
             // Pull a metrics transport if configured.
     		mt = MetricsTransportFactory.getInstance(conf, ClassLoader.getSystemClassLoader());
-    		Random r = new Random();
-    		
-    		Object sr = conf.get(SAMPLE_RATE_KEY);
-    		if (sr != null) {
-    			sample_rate  = Double.parseDouble(sr.toString());
-    		}
     		
     		try {
     			taskId = context.getThisTaskId();

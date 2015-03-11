@@ -1,3 +1,21 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.io.BufferedReader;
@@ -13,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -128,7 +147,7 @@ public class Main {
 		
 	class DepWalker extends SOpPlanVisitor {
 
-		private static final String DISABLE_SPOUT_WRAPPER_KEY = "pig.streaming.disable.spout.wraper";
+		private static final String DISABLE_SPOUT_WRAPPER_KEY = "pig.streaming.disable.spout.wrapper";
 		private TridentTopology topology;
 		private Map<StormOper, List<Stream>> sop_streams = new HashMap<StormOper, List<Stream>>();
 		private PigContext pc;
@@ -165,7 +184,7 @@ public class Main {
 
 					// Pull and record timestamp.
 					if (instrumentTransport) {
-						input = TransportMeasureHelper.extractAndRecord(input);
+						input = TransportMeasureHelper.extractAndRecord(input, sop.name());
 					}
 
 					System.out.println("Setting output name: " + sop.name());
@@ -248,7 +267,7 @@ public class Main {
 				
 				// Add source and timestamp.
 				if (instrumentTransport) {
-					output = TransportMeasureHelper.instrument(output);
+					output = TransportMeasureHelper.instrument(output, sop.getLoadFunc().getClass().getSimpleName());
 				}
 				
 				outputs.add(output);
@@ -313,12 +332,23 @@ public class Main {
 
 					// Partition and Aggregate.
 					ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
-							.chainedAgg()
-							.partitionAggregate(orig_input_fields, agg_fact.getStage1Aggregator(), new Fields("stage1_vl"));
+							.chainedAgg();
+					
+					// A uuid used to pair the two transport measurements.
+					String agg_uuid = UUID.randomUUID().toString();					
+					if (instrumentTransport) {
+						part_agg_chain = TransportMeasureHelper.instrument_pre(part_agg_chain, sop.name(), agg_uuid);
+					}
+					
+					part_agg_chain = part_agg_chain
+							.partitionAggregate(
+									orig_input_fields, 
+									agg_fact.getStage1Aggregator(), 
+									new Fields("stage1_vl"));
 
 					// Handle timestamps.
 					if (instrumentTransport) {
-						part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain);
+						part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain, sop.name(), agg_uuid);
 					}
 
 					intermed.add(part_agg_chain.chainEnd());
@@ -333,12 +363,22 @@ public class Main {
 				
 				// Group and Aggregate.
 				ChainedFullAggregatorDeclarer agg_chain = aggregated_part.groupBy(group_key)
-						.chainedAgg()
-							.aggregate(new Fields("stage1_vl"), agg_fact.getStage2Aggregator(), output_fields);
+						.chainedAgg();
+				
+				String agg_uuid = UUID.randomUUID().toString();	
+				if (instrumentTransport) {
+					agg_chain = TransportMeasureHelper.instrument_pre(agg_chain, sop.name(), agg_uuid);
+				}
+				
+				agg_chain = agg_chain
+							.aggregate(
+									new Fields("stage1_vl"), 
+									agg_fact.getStage2Aggregator(), 
+									output_fields);
 				
 				// Handle the times after the groupBy (remote side).
 				if (instrumentTransport) {
-					agg_chain = TransportMeasureHelper.instrument(agg_chain);
+					agg_chain = TransportMeasureHelper.instrument(agg_chain, sop.name(), agg_uuid);
 				}
 
 				Stream aggregated = agg_chain.chainEnd();
@@ -380,7 +420,7 @@ public class Main {
 				for (Stream input : inputs) {
 					// Pull and record timestamp.
 					if (instrumentTransport) {
-						input = TransportMeasureHelper.extractAndRecord(input);
+						input = TransportMeasureHelper.extractAndRecord(input, sop.name());
 					}
 
 					// Need to reduce
@@ -397,7 +437,7 @@ public class Main {
 			// Add source and timestamp.
 			if (instrumentTransport) {
 				for (int i = 0; i < outputs.size(); i++) {
-					outputs.set(i, TransportMeasureHelper.instrument(outputs.get(i)));	
+					outputs.set(i, TransportMeasureHelper.instrument(outputs.get(i), sop.name()));	
 				}
 			}
 			
