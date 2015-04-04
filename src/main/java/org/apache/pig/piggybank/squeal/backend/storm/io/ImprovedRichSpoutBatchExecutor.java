@@ -22,14 +22,16 @@ import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.framework.recipes.shared.SharedCount;
 import org.apache.curator.framework.recipes.shared.SharedCountListener;
 import org.apache.curator.framework.recipes.shared.SharedCountReader;
 import org.apache.curator.framework.state.ConnectionState;
+import org.apache.curator.retry.BoundedExponentialBackoffRetry;
 import org.apache.pig.piggybank.squeal.metrics.IMetricsTransport;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 
@@ -79,6 +81,25 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         return new RichSpoutEmitter(conf, context);
     }
     
+    static CuratorFramework newCuratorStarted(Map conf, List<String> servers, Object port) {
+    	// Based on Utils.newCuratorStarted in Storm
+    	List<String> serverPorts = new ArrayList<String>();
+        for(String zkServer: (List<String>) servers) {
+            serverPorts.add(zkServer + ":" + Utils.getInt(port));
+        }
+        String zkStr = StringUtils.join(serverPorts, ",") + "";
+        CuratorFrameworkFactory.Builder builder = CuratorFrameworkFactory.builder()
+                .connectString(zkStr)
+                .connectionTimeoutMs(Utils.getInt(conf.get(Config.STORM_ZOOKEEPER_CONNECTION_TIMEOUT)))
+                .sessionTimeoutMs(Utils.getInt(conf.get(Config.STORM_ZOOKEEPER_SESSION_TIMEOUT)))
+                .retryPolicy(new BoundedExponentialBackoffRetry(
+                            Utils.getInt(conf.get(Config.STORM_ZOOKEEPER_RETRY_INTERVAL)),
+                            Utils.getInt(conf.get(Config.STORM_ZOOKEEPER_RETRY_INTERVAL_CEILING)),
+                            Utils.getInt(conf.get(Config.STORM_ZOOKEEPER_RETRY_TIMES))));
+        
+        return builder.build();
+    }
+    
     public static void main(final String args[]) throws Exception {
     	if (args.length == 0) {
     		System.out.println("usage: " + ImprovedRichSpoutBatchExecutor.class.getName() + " path [-put <value>]");
@@ -97,7 +118,7 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         Object port = conf.get(Config.STORM_ZOOKEEPER_PORT);
 
     	System.out.println("Getting curator: " + servers + " " + port);
-    	CuratorFramework curator = Utils.newCuratorStarted(conf, servers, port);
+    	CuratorFramework curator = ImprovedRichSpoutBatchExecutor.newCuratorStarted(conf, servers, port);
     	SharedCount c = new SharedCount(curator, path, -1);
     	c.start();
     	
@@ -160,7 +181,7 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
                 List<String> servers = (List<String>) conf.get(Config.STORM_ZOOKEEPER_SERVERS);
                 Object port = conf.get(Config.STORM_ZOOKEEPER_PORT);
                 
-                _curator = Utils.newCuratorStarted(conf, servers, port);;
+                _curator = newCuratorStarted(conf, servers, port);;
                 
                 // Register and listen to the shared int.
                 _count = new SharedCount(_curator, rootDir + "/" + compId, _maxBatchSize.get());
