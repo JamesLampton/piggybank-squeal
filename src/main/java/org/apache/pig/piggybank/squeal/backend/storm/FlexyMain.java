@@ -292,132 +292,134 @@ public class FlexyMain {
 					throw new RuntimeException(e);
 				}
 			} else if (sop.getType() == StormOper.OpType.BASIC_PERSIST || sop.getType() == StormOper.OpType.COMBINE_PERSIST) {
-				
-				// Accumulate streams before groupby.
-				List<FStream> intermed = new ArrayList<FStream>();
-				
-				// Setup the aggregator.
-				// We want one aggregator to handle the actual combine on a partitioned stream.
-				// We want this one to keep track of LAST -- it's used with storage and right before reducedelta.
-				CombineWrapper.Factory agg_fact = null;				
-				if (sop.getType() == StormOper.OpType.BASIC_PERSIST) {
-					if (sop.getWindowOptions() == null) {
-						agg_fact = new CombineWrapper.Factory(new TriBasicPersist());
-					} else {
-						// We'll be windowing things.
-						agg_fact = new CombineWrapper.Factory(new TriWindowCombinePersist(sop.getWindowOptions()));
-					}
-				} else {					
-					// We need to trim things from the plan re:PigCombiner.java
-					POPackage pack = (POPackage) sop.getPlan().getRoots().get(0);
-					sop.getPlan().remove(pack);
-
-					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
-				}
-				
-				Fields orig_input_fields = inputs.get(0).getOutputFields();
-				Fields group_key = new Fields(orig_input_fields.get(0) + "_raw");
-				
-				for (FStream input : inputs) {						
-					System.out.println("Setting output name: " + sop.name());
-					input = input.name(sop.name());
-
-					// We need to encode the key into a value (sans index) to group properly.
-					input = input.each(
-								new Fields(input.getOutputFields().get(0)),
-								new TriMapFunc.MakeKeyRawValue(),
-								group_key
-							);
-
-					// TRACE
-					//				input.each(input.getOutputFields(), new BetterDebug("TRACE1"));
-					//				System.out.println("XXXXXXXX " + input.getOutputFields());
-
-					// Partition and Aggregate.
-					ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
-							.chainedAgg();
-					
-					// A uuid used to pair the two transport measurements.
-					String agg_uuid = UUID.randomUUID().toString();					
-					if (instrumentTransport) {
-						part_agg_chain = TransportMeasureHelper.instrument_pre(part_agg_chain, sop.name(), agg_uuid);
-					}
-					
-					part_agg_chain = part_agg_chain
-							.partitionAggregate(
-									orig_input_fields, 
-									agg_fact.getStage1Aggregator(), 
-									new Fields("stage1_vl"));
-
-					// Handle timestamps.
-					if (instrumentTransport) {
-						part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain, sop.name(), agg_uuid);
-					}
-
-					intermed.add(part_agg_chain.chainEnd());
-				}
-				
-				// Merge things before doing global group by.
-				FStream aggregated_part = topology.merge(intermed);
-				
-				// TRACE
-//				aggregated_part.each(aggregated_part.getOutputFields(), new BetterDebug("TRACE2"));
-//				System.out.println("XXXXXZZZ " + aggregated_part.getOutputFields());
-				
-				// Group and Aggregate.
-				ChainedFullAggregatorDeclarer agg_chain = aggregated_part.groupBy(group_key)
-						.chainedAgg();
-				
-				String agg_uuid = UUID.randomUUID().toString();	
-				if (instrumentTransport) {
-					agg_chain = TransportMeasureHelper.instrument_pre(agg_chain, sop.name(), agg_uuid);
-				}
-				
-				agg_chain = agg_chain
-							.aggregate(
-									new Fields("stage1_vl"), 
-									agg_fact.getStage2Aggregator(), 
-									output_fields);
-				
-				// Handle the times after the groupBy (remote side).
-				if (instrumentTransport) {
-					agg_chain = TransportMeasureHelper.instrument(agg_chain, sop.name(), agg_uuid);
-				}
-
-				Stream aggregated = agg_chain.chainEnd();
-				
-				// TRACE
-//				aggregated.each(aggregated.getOutputFields(), new BetterDebug("TRACE3"));
-//				System.out.println("XXXXXYYY " + aggregated.getOutputFields());
-				
-				// Persist
-				TridentState gr_persist = aggregated
-						.partitionPersist(
-									sop.getStateFactory(pc),
-									TridentUtils.fieldsUnion(group_key, output_fields),
-									new MapCombinerAggStateUpdater(agg_fact.getStoreAggregator(), group_key, output_fields),
-									TridentUtils.fieldsConcat(group_key, output_fields)
-								);
-				if (sop.getParallelismHint() > 0) {
-					gr_persist.parallelismHint(sop.getParallelismHint());
-				}
-				FStream output = gr_persist.newValuesStream();
-				
-				// TRACE
-//				output.each(output.getOutputFields(), new BetterDebug("TRACE4"));
-			
-				// Re-alias the raw as the key.
-				output = output.each(
-							group_key,
-							new TriMapFunc.Copy(),
-							new Fields(orig_input_fields.get(0))
-						);
-
-				// Strip down to the appropriate values
-				output = output.project(new Fields(orig_input_fields.get(0), output_fields.get(0)));
-//				output.each(output.getOutputFields(), new Debug());
-				
-				outputs.add(output);
+				// FIXME: GROUP BY
+//				
+//				// Accumulate streams before groupby.
+//				List<FStream> intermed = new ArrayList<FStream>();
+//				
+//				// Setup the aggregator.
+//				// We want one aggregator to handle the actual combine on a partitioned stream.
+//				// We want this one to keep track of LAST -- it's used with storage and right before reducedelta.
+//				CombineWrapper.Factory agg_fact = null;				
+//				if (sop.getType() == StormOper.OpType.BASIC_PERSIST) {
+//					if (sop.getWindowOptions() == null) {
+//						agg_fact = new CombineWrapper.Factory(new TriBasicPersist());
+//					} else {
+//						// We'll be windowing things.
+//						agg_fact = new CombineWrapper.Factory(new TriWindowCombinePersist(sop.getWindowOptions()));
+//					}
+//				} else {					
+//					// We need to trim things from the plan re:PigCombiner.java
+//					POPackage pack = (POPackage) sop.getPlan().getRoots().get(0);
+//					sop.getPlan().remove(pack);
+//
+//					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
+//				}
+//				
+//				Fields orig_input_fields = inputs.get(0).getOutputFields();
+//				Fields group_key = new Fields(orig_input_fields.get(0) + "_raw");
+//				
+//				for (FStream input : inputs) {						
+//					System.out.println("Setting output name: " + sop.name());
+//					input = input.name(sop.name());
+//
+//					// We need to encode the key into a value (sans index) to group properly.
+//					input = input.each(
+//								new Fields(input.getOutputFields().get(0)),
+//								new TriMapFunc.MakeKeyRawValue(),
+//								group_key
+//							);
+//
+//					// TRACE
+//					//				input.each(input.getOutputFields(), new BetterDebug("TRACE1"));
+//					//				System.out.println("XXXXXXXX " + input.getOutputFields());
+//
+//					// Partition and Aggregate.
+//					ChainedPartitionAggregatorDeclarer part_agg_chain = input.groupBy(group_key)
+//							.chainedAgg();
+//					
+//					// A uuid used to pair the two transport measurements.
+//					String agg_uuid = UUID.randomUUID().toString();					
+//					if (instrumentTransport) {
+//						part_agg_chain = TransportMeasureHelper.instrument_pre(part_agg_chain, sop.name(), agg_uuid);
+//					}
+//					
+//					part_agg_chain = part_agg_chain
+//							.partitionAggregate(
+//									orig_input_fields, 
+//									agg_fact.getStage1Aggregator(), 
+//									new Fields("stage1_vl"));
+//
+//					// Handle timestamps.
+//					if (instrumentTransport) {
+//						part_agg_chain = TransportMeasureHelper.instrument(part_agg_chain, sop.name(), agg_uuid);
+//					}
+//
+//					intermed.add(part_agg_chain.chainEnd());
+//				}
+//				
+//				// Merge things before doing global group by.
+//				FStream aggregated_part = topology.merge(intermed);
+//				
+//				// TRACE
+////				aggregated_part.each(aggregated_part.getOutputFields(), new BetterDebug("TRACE2"));
+////				System.out.println("XXXXXZZZ " + aggregated_part.getOutputFields());
+//				
+//				// Group and Aggregate.
+//				ChainedFullAggregatorDeclarer agg_chain = aggregated_part.groupBy(group_key)
+//						.chainedAgg();
+//				
+//				String agg_uuid = UUID.randomUUID().toString();	
+//				if (instrumentTransport) {
+//					agg_chain = TransportMeasureHelper.instrument_pre(agg_chain, sop.name(), agg_uuid);
+//				}
+//				
+//				agg_chain = agg_chain
+//							.aggregate(
+//									new Fields("stage1_vl"), 
+//									agg_fact.getStage2Aggregator(), 
+//									output_fields);
+//				
+//				// Handle the times after the groupBy (remote side).
+//				if (instrumentTransport) {
+//					agg_chain = TransportMeasureHelper.instrument(agg_chain, sop.name(), agg_uuid);
+//				}
+//
+//				Stream aggregated = agg_chain.chainEnd();
+//				
+//				// TRACE
+////				aggregated.each(aggregated.getOutputFields(), new BetterDebug("TRACE3"));
+////				System.out.println("XXXXXYYY " + aggregated.getOutputFields());
+//				
+//				// Persist
+//				TridentState gr_persist = aggregated
+//						.partitionPersist(
+//									sop.getStateFactory(pc),
+//									TridentUtils.fieldsUnion(group_key, output_fields),
+//									new MapCombinerAggStateUpdater(agg_fact.getStoreAggregator(), group_key, output_fields),
+//									TridentUtils.fieldsConcat(group_key, output_fields)
+//								);
+//				if (sop.getParallelismHint() > 0) {
+//					gr_persist.parallelismHint(sop.getParallelismHint());
+//				}
+//				FStream output = gr_persist.newValuesStream();
+//				
+//				// TRACE
+////				output.each(output.getOutputFields(), new BetterDebug("TRACE4"));
+//			
+//				// Re-alias the raw as the key.
+//				output = output.each(
+//							group_key,
+//							new TriMapFunc.Copy(),
+//							new Fields(orig_input_fields.get(0))
+//						);
+//
+//				// Strip down to the appropriate values
+//				output = output.project(new Fields(orig_input_fields.get(0), output_fields.get(0)));
+////				output.each(output.getOutputFields(), new Debug());
+//				
+//				outputs.add(output);
+				// FIXME: END GROUP BY
 			} else if (sop.getType() == StormOper.OpType.REDUCE_DELTA) {
 				
 				for (FStream input : inputs) {

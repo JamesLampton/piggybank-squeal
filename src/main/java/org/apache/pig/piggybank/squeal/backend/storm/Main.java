@@ -459,8 +459,7 @@ public class Main {
 		try {
 			w.visit();
 		} catch (VisitorException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 		
 //		for (StormOper r : splan.getRoots()) {	
@@ -658,8 +657,7 @@ public class Main {
 			o = fh.readObject();
 			fh.close();
 		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
 		return o;
 	}
