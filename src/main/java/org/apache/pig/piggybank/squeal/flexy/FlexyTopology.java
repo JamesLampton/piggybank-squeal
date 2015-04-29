@@ -37,21 +37,31 @@ public class FlexyTopology {
 	}
 
 	public StormTopology build() {
+		// Crawl the graph and create execution pipelines to be run in the bolts.
+		
+		
 		// TODO Auto-generated method stub
 		return null;
 	}
 	
 	public FStream merge(List<FStream> intermed) {
-		// TODO Auto-generated method stub
-		return null;
+		// Create a new node.
+		FStream n = new FStream(null, this, FStream.NodeType.MERGE);
+		
+		_graph.addVertex(n);
+		
+		for (FStream node : intermed) {
+			link(node, n);
+		}
+		
+		return n;
 	}
 
 	public FStream newStream(String name,
 			ImprovedRichSpoutBatchExecutor improvedRichSpoutBatchExecutor) {
 		
 		// Create a new node.
-		FStream n = new FStream(name, this, FStream.NodeType.SPOUT);
-		n.setSpout(improvedRichSpoutBatchExecutor);
+		FStream n = new FStream(name, this, improvedRichSpoutBatchExecutor);
 		
 		_graph.addVertex(n);
 		
@@ -59,7 +69,9 @@ public class FlexyTopology {
 	}
 
 	public void link(FStream node, FStream n) {
+		index_counter += 1;
+		IndexedEdge<FStream> e = new IndexedEdge<FStream>(node, n, index_counter);
 		
-		
+		_graph.addEdge(node, n, e);
 	}
 }

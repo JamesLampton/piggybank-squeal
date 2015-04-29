@@ -83,7 +83,6 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		} catch (ExecutionException e) {
 			collector.reportError(e);
 		}
-		
 	}
 	
 	public void flush() {

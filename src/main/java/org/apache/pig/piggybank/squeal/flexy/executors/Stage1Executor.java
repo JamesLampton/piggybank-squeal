@@ -54,9 +54,11 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	Map<Writable, T> stateBacklog;
 	List<List<Object>> prefetch;
 	private MapState<T> state;
+	private CombinerAggregator<T> storeAgg;
 	
-	public Stage1Executor(CombinerAggregator<T> agg, StateFactory sf) {
+	public Stage1Executor(CombinerAggregator<T> agg, CombinerAggregator<T> storeAgg, StateFactory sf) {
 		this.agg = agg;
+		this.storeAgg = storeAgg;
 		this.sf = sf;
 	}
 
@@ -134,7 +136,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		List<T> fetched = state.multiGet(prefetch);
 		for (int i = 0; i < prefetch.size(); i++) {
 			T cur = fetched.get(i);
-			if (cur == null) cur = agg.zero();
+			if (cur == null) cur = storeAgg.zero();
 			stateBacklog.put((Writable) prefetch.get(0).get(0), cur);
 		}
 		prefetch.clear();
@@ -155,7 +157,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		cur = stateBacklog.get(note.getKey());
 		
 		// Apply the update.
-		cur = agg.combine(cur, note.getValue());
+		cur = storeAgg.combine(cur, note.getValue());
 		
 		// Replace the backlog
 		stateBacklog.put(note.getKey(), cur);

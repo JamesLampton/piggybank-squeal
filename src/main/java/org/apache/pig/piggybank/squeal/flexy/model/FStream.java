@@ -38,7 +38,7 @@ public class FStream {
 	private int parallelismHint;
 	
 	public enum NodeType {
-		SPOUT, FUNCTION, PROJECTION, SHUFFLE, GROUPBY
+		SPOUT, FUNCTION, PROJECTION, SHUFFLE, GROUPBY, MERGE
 	}
 
 	public FStream(String name, FlexyTopology parent, NodeType t) {
@@ -49,6 +49,12 @@ public class FStream {
 		this.parent = parent;
 	}
 
+	public FStream(String name, FlexyTopology parent,
+			ImprovedRichSpoutBatchExecutor spout) {
+		this(name, parent, NodeType.SPOUT);
+		this.setSpout(spout);
+	}
+
 	public FStream name(String name) {
 		this.name = name;
 		return this;
@@ -56,11 +62,6 @@ public class FStream {
 
 	public void parallelismHint(int parallelismHint) {
 		this.parallelismHint = parallelismHint;
-	}
-
-	public Fields getOutputFields() {
-		// TODO
-		return null;
 	}
 
 	public FStream each(Fields input, Function func,
@@ -100,11 +101,16 @@ public class FStream {
 		return n;
 	}
 
-	public FStream groupBy(Fields group_key, CombinerAggregator stage1Agg, CombinerAggregator stage2Agg, StateFactory sf) {
+	public FStream groupBy(Fields group_key, 
+			CombinerAggregator stage1Agg, 
+			CombinerAggregator stage2Agg, 
+			CombinerAggregator storeAgg, StateFactory sf) {
+		// FIXME: Probably need to add input/output fields for the existing code to work.
+		
 		// Create a groupby node.
 		FStream n = new FStream(null, parent, NodeType.GROUPBY);
 
-		n.setGroupBySpec(group_key, stage1Agg, stage2Agg, sf);
+		n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf);
 		
 		// Link the nodes.
 		parent.link(this, n);
@@ -112,7 +118,12 @@ public class FStream {
 		return n;
 	}
 	
-	public void setSpout(ImprovedRichSpoutBatchExecutor spout) {
+	public Fields getOutputFields() {
+		// TODO
+		return null;
+	}
+	
+	private void setSpout(ImprovedRichSpoutBatchExecutor spout) {
 		this.spout = spout;
 	}
 
@@ -126,7 +137,7 @@ public class FStream {
 	}
 
 	private void setGroupBySpec(Fields group_key, CombinerAggregator stage1Agg,
-			CombinerAggregator stage2Agg, StateFactory sf) {
+			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, StateFactory sf) {
 		// TODO Auto-generated method stub
 	}
 }
