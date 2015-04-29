@@ -1,4 +1,4 @@
-package org.apache.storm.flexy.topo;
+package org.apache.pig.piggybank.squeal.flexy.topo;
 
 import java.util.Map;
 import java.util.Random;

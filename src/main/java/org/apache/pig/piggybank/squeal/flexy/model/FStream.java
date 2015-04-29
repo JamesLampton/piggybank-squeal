@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.storm.flexy.model;
+package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.util.UUID;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
-import org.apache.storm.flexy.FlexyTopology;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;

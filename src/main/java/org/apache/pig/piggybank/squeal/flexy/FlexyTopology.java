@@ -16,12 +16,12 @@
  * limitations under the License.
  */
 
-package org.apache.storm.flexy;
+package org.apache.pig.piggybank.squeal.flexy;
 
 import java.util.List;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
-import org.apache.storm.flexy.model.FStream;
+import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import storm.trident.util.ErrorEdgeFactory;

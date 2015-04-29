@@ -66,10 +66,10 @@ import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.apache.pig.piggybank.squeal.metrics.TransportMeasureHelper;
 import org.apache.storm.flexy.FlexyTopology;
-import org.apache.storm.flexy.model.FStream;
 import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;

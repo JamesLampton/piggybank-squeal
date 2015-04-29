@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.storm.flexy.executors;
+package org.apache.pig.piggybank.squeal.flexy.executors;
 
 import java.util.ArrayList;
 import java.util.HashMap;
