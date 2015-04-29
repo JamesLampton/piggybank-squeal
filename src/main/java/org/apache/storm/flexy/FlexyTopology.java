@@ -22,10 +22,19 @@ import java.util.List;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.storm.flexy.model.FStream;
+import org.jgrapht.graph.DefaultDirectedGraph;
 
+import storm.trident.util.ErrorEdgeFactory;
+import storm.trident.util.IndexedEdge;
 import backtype.storm.generated.StormTopology;
 
 public class FlexyTopology {
+	DefaultDirectedGraph<FStream, IndexedEdge<FStream>> _graph;
+	int index_counter = 0;
+	
+	public FlexyTopology() {
+		_graph = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new ErrorEdgeFactory());
+	}
 
 	public StormTopology build() {
 		// TODO Auto-generated method stub
@@ -37,9 +46,20 @@ public class FlexyTopology {
 		return null;
 	}
 
-	public FStream newStream(String string,
+	public FStream newStream(String name,
 			ImprovedRichSpoutBatchExecutor improvedRichSpoutBatchExecutor) {
-		// TODO Auto-generated method stub
-		return null;
+		
+		// Create a new node.
+		FStream n = new FStream(name, this, FStream.NodeType.SPOUT);
+		n.setSpout(improvedRichSpoutBatchExecutor);
+		
+		_graph.addVertex(n);
+		
+		return n;
+	}
+
+	public void link(FStream node, FStream n) {
+		
+		
 	}
 }
