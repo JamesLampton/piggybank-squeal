@@ -22,6 +22,7 @@ import java.util.UUID;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
+import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
@@ -139,5 +140,14 @@ public class FStream {
 	private void setGroupBySpec(Fields group_key, CombinerAggregator stage1Agg,
 			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, StateFactory sf) {
 		// TODO Auto-generated method stub
+	}
+
+	public NodeType getType() {
+		return nodeType;
+	}
+
+	public FStream copy() {
+		// TODO Auto-generated method stub
+		return null;
 	}
 }
