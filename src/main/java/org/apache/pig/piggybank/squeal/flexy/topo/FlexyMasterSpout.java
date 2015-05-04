@@ -56,7 +56,7 @@ public class FlexyMasterSpout extends BaseRichSpout {
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declareStream("start", new Fields("batchid", "last_failed"));
-		declarer.declareStream("commit", new Fields("batchid"));
+		declarer.declareStream("commit", new Fields("batchid", "success"));
 	}
 
 	@Override

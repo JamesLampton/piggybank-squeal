@@ -150,4 +150,32 @@ public class FStream {
 		// TODO Auto-generated method stub
 		return null;
 	}
+
+	public void setStage0Agg(boolean b) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	public String getNodeId() {
+		return nodeId;
+	}
+
+	public Fields getGroupingFields() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public String getStreamName() {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public int getParallelism() {
+		// TODO Auto-generated method stub
+		return 0;
+	}
 }

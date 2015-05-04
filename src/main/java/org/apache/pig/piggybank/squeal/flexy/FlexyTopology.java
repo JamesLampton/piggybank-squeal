@@ -21,8 +21,10 @@ package org.apache.pig.piggybank.squeal.flexy;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
@@ -33,6 +35,7 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 import storm.trident.util.ErrorEdgeFactory;
 import storm.trident.util.IndexedEdge;
 import backtype.storm.generated.StormTopology;
+import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 
 public class FlexyTopology {
@@ -117,6 +120,7 @@ public class FlexyTopology {
 	private void logicalToBoltGraph() {
 		// Convert the logical graph to a bolt graph.
 		DefaultDirectedGraph<FStream, IndexedEdge<FStream>> G = (DefaultDirectedGraph<FStream, IndexedEdge<FStream>>) _graph.clone();
+		int bolt_counter = 0;
 
 		removeMerges(G);
 		
@@ -142,7 +146,7 @@ public class FlexyTopology {
 			FlexyBolt b = null;
 			if (n.getType() == FStream.NodeType.SPOUT) {
 				// Create a bolt and link it into the map.
-				b = new FlexyBolt(n);
+				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
 			} else if (n.getType() == FStream.NodeType.FUNCTION || 
 					n.getType() == FStream.NodeType.PROJECTION) {
@@ -157,7 +161,7 @@ public class FlexyTopology {
 				b.link(prev_n, n);
 			} else if (n.getType() == FStream.NodeType.SHUFFLE) {
 				// Create a bolt and link it into the map.
-				b = new FlexyBolt(n);
+				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
 				
 				// Add edges for all previous nodes
@@ -171,7 +175,7 @@ public class FlexyTopology {
 				}
 			} else if (n.getType() == FStream.NodeType.GROUPBY) {
 				// Create a new bolt for the Stage1/Store portion.
-				b = new FlexyBolt(n);
+				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
 				
 				// Link it to the preceding bolts.
@@ -179,10 +183,12 @@ public class FlexyTopology {
 					FlexyBolt prev_b = boltMap.get(edge.source);
 
 					// Link this node into the bolt for Stage0 Aggregation.
-					prev_b.link(edge.source, n);
+					FStream s0_agg = n.copy();
+					s0_agg.setStage0Agg(true);
+					prev_b.link(edge.source, s0_agg);
 					
 					edge_counter += 1;
-					IndexedEdge<FStream> e = new IndexedEdge<FStream>(edge.source, n, edge_counter);
+					IndexedEdge<FStream> e = new IndexedEdge<FStream>(s0_agg, n, edge_counter);
 					
 					boltG.addEdge(prev_b, b, e);
 				}
@@ -201,6 +207,39 @@ public class FlexyTopology {
 			}
 		} 
 	}
+	
+	void _visitAndBuild(FlexyBolt b, Set<FlexyBolt> built_memo, TopologyBuilder builder) {
+		if (built_memo.contains(b)) {
+			return;
+		}
+		
+		// Add the bolt to the topology.
+		BoltDeclarer b_builder = builder.setBolt(b.getName(), b, b.getParallelism());
+		
+		// Link to the appropriate inputs.
+		if (b.getRoot().getType() == FStream.NodeType.SPOUT) {
+			// Link to the master.
+			b_builder.allGrouping("FlexyMaster", "start");
+			b_builder.allGrouping("FlexyMaster", "commit");
+		}
+		
+		for (IndexedEdge<FStream> edge : boltG.incomingEdgesOf(b)) {
+			// Ensure it exists.
+			FlexyBolt source_b = boltMap.get(edge.source);
+			_visitAndBuild(source_b, built_memo, builder);
+			
+			// Now link it.
+			String source_name = source_b.getName();
+			String source_stream = edge.source.getStreamName();
+			
+			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
+				b_builder.shuffleGrouping(source_name, source_stream);
+			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
+				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
+			}
+			
+		}
+	}
 
 	public StormTopology build() {
 		// Crawl the graph and create execution pipelines to be run in the bolts.
@@ -212,8 +251,13 @@ public class FlexyTopology {
 		// Create the coordinator spout.
 		builder.setSpout("FlexyMaster", new FlexyMasterSpout());
 		
-		// Start from the spouts and walk the graph.
-		// TODO
+		// Start from the leaves and walk to the spouts using DFS.
+		Set<FlexyBolt> built_memo = new HashSet<FlexyBolt>();
+		for (FlexyBolt b : boltG.vertexSet()) {
+			if (boltG.outDegreeOf(b) == 0) {
+				_visitAndBuild(b, built_memo, builder);
+			}
+		}
 		
 		return builder.createTopology();
 	}
