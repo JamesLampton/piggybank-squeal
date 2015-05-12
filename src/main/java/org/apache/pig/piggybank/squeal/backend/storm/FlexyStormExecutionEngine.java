@@ -10,15 +10,15 @@ import org.apache.pig.tools.pigstats.ScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.SimplePigStats;
 
-public class StormExecutionEngine extends HExecutionEngine {
+public class FlexyStormExecutionEngine extends HExecutionEngine {
 
-	public StormExecutionEngine(PigContext pigContext) {
+	public FlexyStormExecutionEngine(PigContext pigContext) {
 		this(pigContext, false);
 	}
 
-	public StormExecutionEngine(PigContext pigContext, boolean run_local) {
+	public FlexyStormExecutionEngine(PigContext pigContext, boolean run_local) {
 		super(pigContext);
-		this.launcher = new StormLauncher(run_local, false);
+		this.launcher = new StormLauncher(run_local, true);
 	}
 
 	@Override

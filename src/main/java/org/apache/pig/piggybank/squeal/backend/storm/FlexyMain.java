@@ -84,19 +84,8 @@ import backtype.storm.utils.Utils;
 import storm.trident.operation.BaseFilter;
 import storm.trident.tuple.TridentTuple;
 
-public class FlexyMain {
-
-	private static final String RUN_TEST_CLUSTER_KEY = "pig.streaming.run.test.cluster";
-	private static final String TEST_CLUSTER_WAIT_TIME_KEY = "pig.streaming.run.test.cluster.wait_time";
-	private static final String ACKERS_COUNT_KEY = "pig.streaming.ackers";
-	private static final String WORKERS_COUNT_KEY = "pig.streaming.workers";
-	private static final String PIG_STREAMING_KEY_PREFIX = "pig.streaming";
-	private static final String RUN_DIRECT_KEY = "pig.streaming.run.test.cluster.direct";
-	private static final String TOPOLOGY_NAME_KEY = "pig.streaming.topology.name";
-	private static final String EXTRA_CONF_KEY = "pig.streaming.extra.conf";
-	private static final String DEBUG_ENABLE_KEY = "pig.streaming.debug";
+public class FlexyMain extends Main {
 	
-	PigContext pc;
 	SOperPlan splan;
 	private FlexyTopology ft;
 	private static final Log log = LogFactory.getLog(FlexyMain.class);
@@ -110,7 +99,7 @@ public class FlexyMain {
 		this.pc = pc;
 		this.splan = splan;
 		if (splan != null) {
-			ft = setupTopology(pc);
+			ft = setupFlexyTopology(pc);
 		}
 	}
 	
@@ -118,23 +107,7 @@ public class FlexyMain {
 		this.pc = pc;
 		// Decode the plan from the context.
 		splan = (SOperPlan) ObjectSerializer.deserialize(pc.getProperties().getProperty(StormLauncher.PLANKEY));
-		ft = setupTopology(pc);
-	}
-	
-	static class BetterDebug extends BaseFilter {
-
-		private String prepend;
-
-		public BetterDebug(String prepend) {
-			this.prepend = prepend;
-		}
-		
-		@Override
-		public boolean isKeep(TridentTuple tuple) {
-			System.out.println("DEBUG " + prepend + ":" + tuple.toString());
-	        return true;
-		}
-		
+		ft = setupFlexyTopology(pc);
 	}
 		
 	class DepWalker extends SOpPlanVisitor {
@@ -335,7 +308,8 @@ public class FlexyMain {
 						agg_fact.getStage1Aggregator(), 
 						agg_fact.getStage2Aggregator(), 
 						agg_fact.getStoreAggregator(),
-						sop.getStateFactory(pc));
+						sop.getStateFactory(pc),
+						output_fields);
 				
 				if (sop.getParallelismHint() > 0) {
 					output.parallelismHint(sop.getParallelismHint());
@@ -388,7 +362,7 @@ public class FlexyMain {
 		}
 	};
 	
-	public FlexyTopology setupTopology(PigContext pc) {
+	public FlexyTopology setupFlexyTopology(PigContext pc) {
 		FlexyTopology topology = new FlexyTopology();
 		
 		// Pull out the leaves to handle storage.
@@ -399,116 +373,14 @@ public class FlexyMain {
 		try {
 			w.visit();
 		} catch (VisitorException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new RuntimeException(e);
 		}
-		
-//		for (StormOper r : splan.getRoots()) {	
-//			// Grab the load statement.
-//			System.err.println(r);
-//		}
 		
 		return topology;
 	}
 	
-	void explain(PrintStream ps) {
-		ps.println("#--------------------------------------------------");
-        ps.println("# Storm Topology                                   ");
-        ps.println("#--------------------------------------------------");
-        
-        StormTopology topo = ft.build();
-        
-        ps.println("# Spouts:                                          ");
-        
-        Map<String, SpoutSpec> spouts = topo.get_spouts();
-        for (Entry<String, SpoutSpec> ent : spouts.entrySet()) {
-        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
-        	
-        	SpoutSpec spec = ent.getValue();
-        	
-        	ps.println("Streams: ");
-        	Map<String, StreamInfo> streams = spec.get_common().get_streams();
-        	for (Entry<String, StreamInfo> ent2 : streams.entrySet()) {
-        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-        	}
-        	
-        	ps.println("#--------------------------------------------------");
-        }
-        
-        ps.println("# Bolts:                                           ");
-        
-        for (Entry<String, Bolt> ent : topo.get_bolts().entrySet()) {
-        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
-        	
-        	ps.println("Inputs: ");
-        	Map inputs = ent.getValue().get_common().get_inputs();        	
-			for (Object k : inputs.keySet()) {
-        		ps.println("** " + k + " " + inputs.get(k));
-        	}
-        	
-        	ps.println("Outputs: ");
-        	for (Entry<String, StreamInfo> ent2 : ent.getValue().get_common().get_streams().entrySet()) {
-        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-        	}
-        	
-        	ps.println("#--------------------------------------------------");
-        }
-	}
-	
-	void runTestCluster(String topology_name, long wait_time, boolean debug) {
-		// Run test.
-		Config conf = new Config();
-		conf.put(Config.TOPOLOGY_WORKERS, 1);
-		conf.put(Config.TOPOLOGY_DEBUG, debug);
-		
-		passPigContextProperties(conf);
-		
-		try {
-			LocalCluster cluster = new LocalCluster();
-			
-			cluster.submitTopology(topology_name, conf, ft.build());
-			
-			if (wait_time > 0) {
-				log.info("Waiting " + wait_time + " ms for the test cluster to run.");
-				Utils.sleep(wait_time);
-				cluster.killTopology(topology_name);
-				cluster.shutdown();
-			}
-		} catch (Throwable e) {
-			e.printStackTrace();
-			throw new RuntimeException(e);
-		}
-		
-	}
-	
-	public void registerSerializer(Config conf) {
-//		conf.registerSerialization(Writable.class, WritableKryoSerializer.class);
-		
-		// PigTypes
-		conf.registerSerialization(NullableBooleanWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableBytesWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableText.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableFloatWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableDoubleWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableIntWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableLongWritable.class, WritableKryoSerializer.class);
-		conf.registerSerialization(NullableBag.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(NullableTuple.class, WritableKryoSerializer.class);
-		
-	    // Squeal Types
-	    conf.registerSerialization(CombineWrapper.CombineWrapperState.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(TriBasicPersist.TriBasicPersistState.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(TriWindowCombinePersist.WindowCombineState.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(CombineTupleWritable.class, WritableKryoSerializer.class);
-	}
-	
-	public void passPigContextProperties(Config conf) {
-		for (Entry<Object, Object> prop : pc.getProperties().entrySet()) {
-			String k = (String) prop.getKey();
-			if (k.startsWith(PIG_STREAMING_KEY_PREFIX)) {
-				conf.put(k, prop.getValue());
-			}
-		}
+	protected StormTopology getTopology() {
+		return ft.build();
 	}
 	
 	public void launch(String jarFile) throws AlreadyAliveException, InvalidTopologyException, IOException {
@@ -541,82 +413,6 @@ public class FlexyMain {
 	        if (ret != 0) {
 	        	throw new RuntimeException("storm jar returned with non-zero status: " + ret);
 	        }
-		}
-	}
-	
-	public void submitTopology(String topology_name) throws AlreadyAliveException, InvalidTopologyException {
-		Config conf = new Config();
-		
-		String extraConf = pc.getProperties().getProperty(EXTRA_CONF_KEY, null);
-		if (extraConf != null) {
-			System.out.println("Loading additional configuration properties from: " + extraConf);
-			// Load the configuration file.
-			Yaml yaml = new Yaml();
-			FileReader fr;
-			try {
-				fr = new FileReader(extraConf);
-				Map<String, Object> m = (Map<String, Object>) yaml.load(fr);
-				conf.putAll(m);
-				fr.close();
-			} catch (IOException e) {
-				throw new RuntimeException(e);
-			}	
-		}
-		
-		int workers = Integer.parseInt(pc.getProperties().getProperty(WORKERS_COUNT_KEY, "4"));
-		conf.setNumWorkers(workers);
-		int ackers = Integer.parseInt(pc.getProperties().getProperty(ACKERS_COUNT_KEY, "1"));
-		conf.setNumAckers(ackers);
-		
-		// Register a Serializer for any Writable.
-		registerSerializer(conf);
-		
-		passPigContextProperties(conf);
-		
-		StormSubmitter submitter = new StormSubmitter();
-		
-		submitter.submitTopology(topology_name, conf, ft.build());
-	}
-	
-	public void runTestCluster(String topology_name) {
-		log.info("Running test cluster...");
-		
-		boolean debug = pc.getProperties().getProperty(DEBUG_ENABLE_KEY, "false").equalsIgnoreCase("true");
-		int wait_time = Integer.parseInt(pc.getProperties().getProperty(TEST_CLUSTER_WAIT_TIME_KEY, "10000"));
-		
-		runTestCluster(topology_name, wait_time, debug);
-		
-		log.info("Back from test cluster.");
-	}
-	
-	Object getStuff(String name) {
-		System.out.println(getClass().getClassLoader().getResource("pigContext"));
-		ObjectInputStream fh;
-		Object o = null;
-		try {
-			fh = new ObjectInputStream(getClass().getClassLoader().getResourceAsStream(name));
-			o = fh.readObject();
-			fh.close();
-		} catch (Exception e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		return o;
-	}
-	
-	public void runMain(String[] args) throws IOException, AlreadyAliveException, InvalidTopologyException {
-		/* Create the Pig context */
-		pc = (PigContext) getStuff("pigContext");
-		initFromPigContext(pc);
-		
-		String topology_name = pc.getProperties().getProperty(TOPOLOGY_NAME_KEY, "PigStorm-" + pc.getLastAlias());
-		
-		if (pc.getProperties().getProperty(RUN_TEST_CLUSTER_KEY, "false").equalsIgnoreCase("true")) {
-			runTestCluster(topology_name);
-			log.info("Exitting forcefully due to non-terminated threads...");
-			System.exit(0);
-		} else {
-			submitTopology(topology_name);
 		}
 	}
 	

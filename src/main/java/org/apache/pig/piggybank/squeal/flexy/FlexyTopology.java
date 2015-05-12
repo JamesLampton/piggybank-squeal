@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
@@ -111,7 +110,8 @@ public class FlexyTopology {
 			}
 			
 			// Remove the outgoing links.
-			G.removeAllEdges(G.outgoingEdgesOf(n));			
+			Set<IndexedEdge<FStream>> out_links = new HashSet<IndexedEdge<FStream>>(G.outgoingEdgesOf(n));
+			G.removeAllEdges(out_links);			
 			// Remove the empty merge node.
 			G.removeVertex(n);
 		}
@@ -226,11 +226,14 @@ public class FlexyTopology {
 		for (IndexedEdge<FStream> edge : boltG.incomingEdgesOf(b)) {
 			// Ensure it exists.
 			FlexyBolt source_b = boltMap.get(edge.source);
+			if (source_b == null) {
+				throw new RuntimeException("??? " + edge.source.getName() + " ?? --> " + edge.target.getName());
+			}
 			_visitAndBuild(source_b, built_memo, builder);
 			
 			// Now link it.
 			String source_name = source_b.getName();
-			String source_stream = edge.source.getStreamName();
+			String source_stream = source_b.getStreamName(edge.source);
 			
 			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
 				b_builder.shuffleGrouping(source_name, source_stream);
@@ -287,6 +290,11 @@ public class FlexyTopology {
 	}
 
 	private void link(DefaultDirectedGraph<FStream, IndexedEdge<FStream>> G, FStream node, FStream n) {
+		// The source should be there, the destination we'll add if necessary.
+		if (!G.containsVertex(n)) {
+			G.addVertex(n);
+		}
+		
 		index_counter += 1;
 		IndexedEdge<FStream> e = new IndexedEdge<FStream>(node, n, index_counter);
 		G.addEdge(node, n, e);
@@ -294,5 +302,9 @@ public class FlexyTopology {
 	
 	public void link(FStream node, FStream n) {
 		link(_graph, node, n);
+	}
+	
+	public Set<IndexedEdge<FStream>> getIncomingEdgesOf(FStream n) {
+		return _graph.incomingEdgesOf(n);
 	}
 }

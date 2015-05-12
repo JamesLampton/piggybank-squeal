@@ -82,10 +82,12 @@ public class StormLauncher extends Launcher {
     }
 
 	private boolean run_local;
+	private boolean flexy;
     
-	public StormLauncher(boolean run_local) {
+	public StormLauncher(boolean run_local, boolean flexy) {
 		super();
 		this.run_local = run_local;
+		this.flexy = flexy;
 	}
 
 	@Override
@@ -229,7 +231,12 @@ public class StormLauncher extends Launcher {
             // Launch the storm task.
             try {
             	log.info("Setting up the topology runner...");
-            	Main m = new Main(pc, sp);
+            	Main m;
+                if (flexy) {
+                	m = new FlexyMain(pc, sp);
+                } else {
+                	m = new Main(pc, sp);
+                }
             	log.info("Launching!");
             	m.launch(submitJarFile.getAbsolutePath());
             	log.info("Back from launch.");
@@ -275,7 +282,12 @@ public class StormLauncher extends Launcher {
             
             printer.visit();
             
-            Main m = new Main(pc, sp);
+            Main m;
+            if (flexy) {
+            	m = new FlexyMain(pc, sp);
+            } else {
+            	m = new Main(pc, sp);
+            }
             m.explain(ps);
         } else {
             ps.println("#--------------------------------------------------");

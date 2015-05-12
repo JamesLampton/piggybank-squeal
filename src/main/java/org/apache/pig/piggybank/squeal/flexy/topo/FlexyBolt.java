@@ -29,6 +29,7 @@ public class FlexyBolt extends BaseRichBolt {
 		this.bolt_id = bolt_id;
 		this.root = root;
 		G = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new ErrorEdgeFactory());
+		G.addVertex(root);
 	}
 
 	@Override
@@ -71,7 +72,7 @@ public class FlexyBolt extends BaseRichBolt {
 		
 		// Create the outputs.
 		for (FStream v : G.vertexSet()) {
-			declarer.declareStream(v.getStreamName(), v.getOutputFields());
+			declarer.declareStream("b" + bolt_id + "-" + v.getName(), v.getOutputFields());
 		}
 	}
 
@@ -110,7 +111,6 @@ public class FlexyBolt extends BaseRichBolt {
 	}
 
 	public int getParallelism() {
-		
 		// Find the max parallelism.
 		int parallelism = 0;
 		for (FStream v : G.vertexSet()) {
@@ -124,6 +124,18 @@ public class FlexyBolt extends BaseRichBolt {
 
 	public FStream getRoot() {
 		return root;
+	}
+
+	public String getStreamName(FStream source) {
+		// Walk the graph in deterministic order to fetch the names.
+		StringBuilder sb = new StringBuilder();
+		sb.append("b");
+		sb.append(bolt_id);
+		
+		sb.append("-");
+		sb.append(source.hashCode());
+		
+		return sb.toString();
 	}
 
 }

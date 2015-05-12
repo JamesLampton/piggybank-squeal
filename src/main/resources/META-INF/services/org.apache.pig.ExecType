@@ -15,3 +15,5 @@
 #org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MRExecType
 org.apache.pig.piggybank.squeal.backend.storm.StormExecType
 org.apache.pig.piggybank.squeal.backend.storm.StormLocalExecType
+org.apache.pig.piggybank.squeal.backend.storm.FlexyStormExecType
+org.apache.pig.piggybank.squeal.backend.storm.FlexyStormLocalExecType

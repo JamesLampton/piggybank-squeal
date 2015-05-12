@@ -94,17 +94,17 @@ import storm.trident.util.TridentUtils;
 
 public class Main {
 
-	private static final String RUN_TEST_CLUSTER_KEY = "pig.streaming.run.test.cluster";
-	private static final String TEST_CLUSTER_WAIT_TIME_KEY = "pig.streaming.run.test.cluster.wait_time";
-	private static final String ACKERS_COUNT_KEY = "pig.streaming.ackers";
-	private static final String WORKERS_COUNT_KEY = "pig.streaming.workers";
-	private static final String PIG_STREAMING_KEY_PREFIX = "pig.streaming";
-	private static final String RUN_DIRECT_KEY = "pig.streaming.run.test.cluster.direct";
-	private static final String TOPOLOGY_NAME_KEY = "pig.streaming.topology.name";
-	private static final String EXTRA_CONF_KEY = "pig.streaming.extra.conf";
-	private static final String DEBUG_ENABLE_KEY = "pig.streaming.debug";
+	protected static final String RUN_TEST_CLUSTER_KEY = "pig.streaming.run.test.cluster";
+	protected static final String TEST_CLUSTER_WAIT_TIME_KEY = "pig.streaming.run.test.cluster.wait_time";
+	protected static final String ACKERS_COUNT_KEY = "pig.streaming.ackers";
+	protected static final String WORKERS_COUNT_KEY = "pig.streaming.workers";
+	protected static final String PIG_STREAMING_KEY_PREFIX = "pig.streaming";
+	protected static final String RUN_DIRECT_KEY = "pig.streaming.run.test.cluster.direct";
+	protected static final String TOPOLOGY_NAME_KEY = "pig.streaming.topology.name";
+	protected static final String EXTRA_CONF_KEY = "pig.streaming.extra.conf";
+	protected static final String DEBUG_ENABLE_KEY = "pig.streaming.debug";
 	
-	PigContext pc;
+	protected PigContext pc;
 	SOperPlan splan;
 	private TridentTopology t;
 	private static final Log log = LogFactory.getLog(Main.class);
@@ -470,12 +470,16 @@ public class Main {
 		return topology;
 	}
 	
+	protected StormTopology getTopology() {
+		return t.build();
+	}
+	
 	void explain(PrintStream ps) {
 		ps.println("#--------------------------------------------------");
         ps.println("# Storm Topology                                   ");
         ps.println("#--------------------------------------------------");
         
-        StormTopology topo = t.build();
+        StormTopology topo = getTopology();
         
         ps.println("# Spouts:                                          ");
         
@@ -525,7 +529,7 @@ public class Main {
 		try {
 			LocalCluster cluster = new LocalCluster();
 			
-			cluster.submitTopology(topology_name, conf, t.build());
+			cluster.submitTopology(topology_name, conf, getTopology());
 			
 			if (wait_time > 0) {
 				log.info("Waiting " + wait_time + " ms for the test cluster to run.");
@@ -634,7 +638,7 @@ public class Main {
 		
 		StormSubmitter submitter = new StormSubmitter();
 		
-		submitter.submitTopology(topology_name, conf, t.build());
+		submitter.submitTopology(topology_name, conf, getTopology());
 	}
 	
 	public void runTestCluster(String topology_name) {

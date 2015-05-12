@@ -18,32 +18,38 @@
 
 package org.apache.pig.piggybank.squeal.flexy.model;
 
-import java.util.UUID;
-
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
-import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
 import storm.trident.state.StateFactory;
+import storm.trident.util.TridentUtils;
 import backtype.storm.tuple.Fields;
 
 public class FStream {
 	
 	private String name;
 	private FlexyTopology parent;
-	private String nodeId;
 	private NodeType nodeType;
 	private ImprovedRichSpoutBatchExecutor spout;
 	private int parallelismHint;
+	private Fields output_fields;
+	private Fields input_fields;
+	private Function func;
+	private boolean stage0Agg = false;
+	private Fields group_key;
+	private CombinerAggregator stage1Agg;
+	private CombinerAggregator stage2Agg;
+	private CombinerAggregator storeAgg;
+	private StateFactory sf;
+	private Fields func_project;
 	
 	public enum NodeType {
 		SPOUT, FUNCTION, PROJECTION, SHUFFLE, GROUPBY, MERGE
 	}
 
 	public FStream(String name, FlexyTopology parent, NodeType t) {
-		this.nodeId = UUID.randomUUID().toString();
 		this.nodeType = t;
 
 		this.name = name;
@@ -71,7 +77,7 @@ public class FStream {
 		FStream n = new FStream(null, parent, NodeType.FUNCTION);
 		
 		// Set the function information.
-		n.setFunctionInformation(input, func, output);
+		n.setFunctionInformation(getOutputFields(), input, func, output);
 		
 		// Link the nodes.
 		parent.link(this, n);
@@ -84,7 +90,7 @@ public class FStream {
 		FStream n = new FStream(null, parent, NodeType.PROJECTION);
 
 		// Set the function information.
-		n.setProjection(output);
+		n.setProjection(getOutputFields(), output);
 
 		// Link the nodes.
 		parent.link(this, n);
@@ -105,13 +111,14 @@ public class FStream {
 	public FStream groupBy(Fields group_key, 
 			CombinerAggregator stage1Agg, 
 			CombinerAggregator stage2Agg, 
-			CombinerAggregator storeAgg, StateFactory sf) {
-		// FIXME: Probably need to add input/output fields for the existing code to work.
+			CombinerAggregator storeAgg, 
+			StateFactory sf, 
+			Fields output_fields) {
 		
 		// Create a groupby node.
 		FStream n = new FStream(null, parent, NodeType.GROUPBY);
 
-		n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf);
+		n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf, output_fields);
 		
 		// Link the nodes.
 		parent.link(this, n);
@@ -120,26 +127,61 @@ public class FStream {
 	}
 	
 	public Fields getOutputFields() {
-		// TODO
-		return null;
+		switch (nodeType) {
+		case FUNCTION:
+			return TridentUtils.fieldsConcat(input_fields, output_fields);
+		case GROUPBY:
+			return TridentUtils.fieldsConcat(group_key, output_fields);
+		case MERGE:
+		case SHUFFLE:
+			// Pull a predecessor.
+			return ((FStream[]) 
+					parent.getIncomingEdgesOf(this).toArray())[0]
+							.getGroupingFields();
+		case PROJECTION:
+			return output_fields;
+		case SPOUT:
+			return spout.getOutputFields();
+		default:
+			throw new RuntimeException("Unknown node type:" + nodeType);
+		}
 	}
 	
 	private void setSpout(ImprovedRichSpoutBatchExecutor spout) {
 		this.spout = spout;
 	}
 
-	private void setFunctionInformation(Fields input, Function func,
-			Fields output) {
-		// TODO Auto-generated method stub
+	private void setFunctionInformation(Fields input, Fields project, 
+			Function func, Fields output) {
+		input_fields = input;
+		func_project = project;
+		this.func = func;
+		output_fields = output;
 	}
 
-	private void setProjection(Fields output) {
-		// TODO Auto-generated method stub
+	private void setProjection(Fields input, Fields output) {
+		this.input_fields = input;
+		this.output_fields = output;
+		
+		// Ensure that the fields in output are present in the input.
+		for (String field : output.toList()) {
+			if (!input.contains(field)) {
+				throw new RuntimeException("Missing field [" + field + 
+						"] in projecting " + input + " to " + output);
+			}
+		}
 	}
 
 	private void setGroupBySpec(Fields group_key, CombinerAggregator stage1Agg,
-			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, StateFactory sf) {
-		// TODO Auto-generated method stub
+			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, 
+			StateFactory sf, Fields output_fields) {
+		
+		this.group_key = group_key;
+		this.stage1Agg = stage1Agg;
+		this.stage2Agg = stage2Agg;
+		this.storeAgg = storeAgg;
+		this.sf = sf;
+		this.output_fields = output_fields;
 	}
 
 	public NodeType getType() {
@@ -147,27 +189,42 @@ public class FStream {
 	}
 
 	public FStream copy() {
-		// TODO Auto-generated method stub
-		return null;
+		FStream n = new FStream(null, parent, nodeType);
+		
+		switch (nodeType) {
+		case FUNCTION:
+			n.setFunctionInformation(input_fields, func_project, func, output_fields);
+			break;
+		case GROUPBY:
+			n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf, output_fields);
+			n.setStage0Agg(stage0Agg);
+			break;
+		case MERGE:
+		case SHUFFLE:
+			// This is really a placeholder node...
+			break;
+		case PROJECTION:
+			n.setProjection(input_fields, output_fields);
+			break;
+		case SPOUT:
+			n.setSpout(spout);
+			break;
+		default:
+			throw new RuntimeException("Unknown node type:" + nodeType);
+		}
+		
+		n.parallelismHint(parallelismHint);
+		n.name(name);
+		
+		return n;
 	}
 
 	public void setStage0Agg(boolean b) {
-		// TODO Auto-generated method stub
-		
-	}
-
-	public String getNodeId() {
-		return nodeId;
+		stage0Agg  = b;
 	}
 
 	public Fields getGroupingFields() {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
-	public String getStreamName() {
-		// TODO Auto-generated method stub
-		return null;
+		return this.group_key;
 	}
 
 	public String getName() {
@@ -175,7 +232,6 @@ public class FStream {
 	}
 
 	public int getParallelism() {
-		// TODO Auto-generated method stub
-		return 0;
+		return parallelismHint;
 	}
 }
