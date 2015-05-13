@@ -383,39 +383,6 @@ public class FlexyMain extends Main {
 		return ft.build();
 	}
 	
-	public void launch(String jarFile) throws AlreadyAliveException, InvalidTopologyException, IOException {
-		if (pc.getProperties().getProperty(RUN_DIRECT_KEY, "false").equalsIgnoreCase("true")) {
-			String topology_name = pc.getProperties().getProperty(TOPOLOGY_NAME_KEY, "PigStorm-" + pc.getLastAlias());
-			runTestCluster(topology_name);
-		} else {			
-			// Execute "storm jar <jarfile> <this.classname>";
-			String exec = "storm jar " + jarFile + " " + this.getClass().getCanonicalName();
-			System.out.println("Running: " + exec);
-			Process p = Runtime.getRuntime().exec(exec);
-			BufferedReader sout = new BufferedReader(new InputStreamReader(p.getInputStream()));
-	        BufferedReader serr = new BufferedReader(new InputStreamReader(p.getErrorStream()));
-	        
-	        // Pull any stdin/stdout
-	        String line;
-	        while ((line = sout.readLine()) != null) {
-	        	System.out.println(line);
-	        }
-	        while ((line = serr.readLine()) != null) {
-	        	System.err.println(line);
-	        }
-	        
-	        int ret;
-			try {
-				ret = p.waitFor();
-			} catch (InterruptedException e) {
-				throw new RuntimeException(e);
-			}
-	        if (ret != 0) {
-	        	throw new RuntimeException("storm jar returned with non-zero status: " + ret);
-	        }
-		}
-	}
-	
 	public static void main(String[] args) throws Exception {
 		FlexyMain m = new FlexyMain();
 		m.runMain(args);

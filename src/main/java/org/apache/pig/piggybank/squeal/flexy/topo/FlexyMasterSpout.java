@@ -49,6 +49,8 @@ public class FlexyMasterSpout extends BaseRichSpout {
 
 	@Override
 	public void nextTuple() {
+//		int enter_state = cur_state;
+		
 		if (cur_state == 0) {
 			// Start a new batch.
 			collector.emit("start", new Values(cur_batch, last_failed), r.nextInt());
@@ -59,16 +61,20 @@ public class FlexyMasterSpout extends BaseRichSpout {
 			// Waiting for propagation of batch..
 		} else if (cur_state == 2) {
 			// Batch completed, begin commit.
-			collector.emit("commit", new Values(cur_batch), r.nextInt());
+			collector.emit("commit", new Values(cur_batch, true), r.nextInt());
 			cur_state ++;
 		} else if (cur_state == 3) {
 			// Waiting for commit complete.
 		} else if (cur_state == 4) {
 			// Commit failed, roll back.
-			collector.emit("commit", new Values(-cur_batch), r.nextInt());
+			collector.emit("commit", new Values(cur_batch, false), r.nextInt());
 		} else {
 			// Do nothing.
 		}
+		
+//		if (cur_state != enter_state) {
+//			log.info(cur_batch + " switched: " + enter_state + " -> " + cur_state);
+//		}
 	}
 
 	@Override
@@ -79,15 +85,18 @@ public class FlexyMasterSpout extends BaseRichSpout {
 
 	@Override
     public void ack(Object msgId) {
+//		log.info(cur_batch + " ack: " + cur_state);
 		// Successful complete drops us back to go.
-		if (cur_state > 3) {
+		if (cur_state >= 3) {
 			cur_state = 0;
+		} else {
+			cur_state ++;
 		}
-		cur_state ++;
     }
 
     @Override
     public void fail(Object msgId) {
+    	log.info(cur_batch + " failed: " + cur_state);
     	// We need to switch to a failed state.
     	cur_state = 4;
     	last_failed = true;

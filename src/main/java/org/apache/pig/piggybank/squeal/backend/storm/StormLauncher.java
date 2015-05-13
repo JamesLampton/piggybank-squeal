@@ -220,10 +220,14 @@ public class StormLauncher extends Launcher {
             	pc.getProperties().setProperty("pig.streaming.run.test.cluster", "true");
             }
             
-            FileOutputStream fos = new FileOutputStream(submitJarFile);
-            JarManager.createJar(fos, sp.UDFs, pc);
+            if (pc.getProperties().getProperty(Main.RUN_DIRECT_KEY, "false").equalsIgnoreCase("true")) {
+            	log.info("Skipping jarfile creation...");
+            } else {
+            	FileOutputStream fos = new FileOutputStream(submitJarFile);
+            	JarManager.createJar(fos, sp.UDFs, pc);
             
-            log.info("jar file "+submitJarFile.getName()+" created");
+            	log.info("jar file "+submitJarFile.getName()+" created");
+            }
             
             // Remove the storm plan from the PC
             pc.getProperties().remove(PLANKEY);

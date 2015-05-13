@@ -144,12 +144,14 @@ public class FlexyTopology {
 			FStream n = stack.pollFirst();
 			
 			FlexyBolt b = null;
-			if (n.getType() == FStream.NodeType.SPOUT) {
+			switch (n.getType()) {
+			case SPOUT:
 				// Create a bolt and link it into the map.
 				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
-			} else if (n.getType() == FStream.NodeType.FUNCTION || 
-					n.getType() == FStream.NodeType.PROJECTION) {
+				break;
+			case FUNCTION: 
+			case PROJECTION:
 				// Pull the previous node.
 				FStream prev_n = 
 						(new ArrayList<IndexedEdge<FStream>>(G.incomingEdgesOf(n)))
@@ -159,7 +161,8 @@ public class FlexyTopology {
 				b = boltMap.get(prev_n);
 				// Link this node into the bolt.
 				b.link(prev_n, n);
-			} else if (n.getType() == FStream.NodeType.SHUFFLE) {
+				break;
+			case SHUFFLE:
 				// Create a bolt and link it into the map.
 				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
@@ -167,13 +170,15 @@ public class FlexyTopology {
 				// Add edges for all previous nodes
 				for (IndexedEdge<FStream> edge : G.incomingEdgesOf(n)) {
 					FlexyBolt prev_b = boltMap.get(edge.source);
+					prev_b.expose(edge.source);
 					
 					edge_counter += 1;
 					IndexedEdge<FStream> e = new IndexedEdge<FStream>(edge.source, n, edge_counter);
 					
 					boltG.addEdge(prev_b, b, e);
 				}
-			} else if (n.getType() == FStream.NodeType.GROUPBY) {
+				break;
+			case GROUPBY:
 				// Create a new bolt for the Stage1/Store portion.
 				b = new FlexyBolt(bolt_counter++, n);
 				boltG.addVertex(b);
@@ -186,14 +191,17 @@ public class FlexyTopology {
 					FStream s0_agg = n.copy();
 					s0_agg.setStage0Agg(true);
 					prev_b.link(edge.source, s0_agg);
+					prev_b.expose(s0_agg);
+					boltMap.put(s0_agg, prev_b);
 					
 					edge_counter += 1;
 					IndexedEdge<FStream> e = new IndexedEdge<FStream>(s0_agg, n, edge_counter);
 					
 					boltG.addEdge(prev_b, b, e);
 				}
-			} else {
-				throw new RuntimeException("Unknown expected node type: " + n + " " + n.getType());
+				break;
+			default:
+				throw new RuntimeException("Unexpected node type: " + n + " " + n.getType());
 			}
 			
 			// Map the bolt.
@@ -226,9 +234,6 @@ public class FlexyTopology {
 		for (IndexedEdge<FStream> edge : boltG.incomingEdgesOf(b)) {
 			// Ensure it exists.
 			FlexyBolt source_b = boltMap.get(edge.source);
-			if (source_b == null) {
-				throw new RuntimeException("??? " + edge.source.getName() + " ?? --> " + edge.target.getName());
-			}
 			_visitAndBuild(source_b, built_memo, builder);
 			
 			// Now link it.

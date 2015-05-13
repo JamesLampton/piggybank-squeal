@@ -18,6 +18,8 @@
 
 package org.apache.pig.piggybank.squeal.flexy.model;
 
+import java.io.Serializable;
+
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 
@@ -27,10 +29,10 @@ import storm.trident.state.StateFactory;
 import storm.trident.util.TridentUtils;
 import backtype.storm.tuple.Fields;
 
-public class FStream {
+public class FStream implements Serializable {
 	
 	private String name;
-	private FlexyTopology parent;
+	private transient FlexyTopology parent;
 	private NodeType nodeType;
 	private ImprovedRichSpoutBatchExecutor spout;
 	private int parallelismHint;
@@ -233,5 +235,9 @@ public class FStream {
 
 	public int getParallelism() {
 		return parallelismHint;
+	}
+	
+	public String toString() {
+		return this.getClass().getCanonicalName() + "@" + Integer.toHexString(hashCode()) + " " + nodeType + " : " + getName();
 	}
 }
