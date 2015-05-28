@@ -19,14 +19,18 @@
 package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.io.Serializable;
+import java.util.Map;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
+import storm.trident.operation.TridentOperationContext;
+import storm.trident.planner.processor.TridentContext;
 import storm.trident.state.StateFactory;
 import storm.trident.util.TridentUtils;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Fields;
 
 public class FStream implements Serializable {
@@ -239,5 +243,13 @@ public class FStream implements Serializable {
 	
 	public String toString() {
 		return this.getClass().getCanonicalName() + "@" + Integer.toHexString(hashCode()) + " " + nodeType + " : " + getName();
+	}
+
+	public Function getFunc() {
+		return func;
+	}
+
+	public ImprovedRichSpoutBatchExecutor getSpout() {
+		return spout;
 	}
 }

@@ -23,6 +23,7 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.Values;
 
 public class FlexyBolt extends BaseRichBolt {
 
@@ -35,6 +36,8 @@ public class FlexyBolt extends BaseRichBolt {
 	Map<FStream, String> idMap = new HashMap<FStream, String>();
 	private OutputCollector collector;
 	private Integer cur_batch = null;
+	private int expectedCoord = 0;
+	private int seenCoord = 0;
 
 	public FlexyBolt(int bolt_id, FStream root) {
 		this.bolt_id = bolt_id;
@@ -50,13 +53,16 @@ public class FlexyBolt extends BaseRichBolt {
 		pipeline.prepare(stormConf, context, collector);
 		this.collector = collector;
 		
-		// TODO: Determine how many coord messages to expect.
-		log.info("XX " + context.getThisComponentId());
+		// Determine how many coord messages to expect.
+		int c = 0;
 		for (Entry<GlobalStreamId, Grouping> prev : 
 			context.getSources(context.getThisComponentId()).entrySet()) {
-			
-			log.info(prev.getKey() + " ---> " + context.getThisComponentId());
+			if (prev.getKey().get_streamId().equals("coord")) {
+				c++;
+			}
+//			log.info(prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
 		}
+		expectedCoord = c;
 	}
 
 	@Override
@@ -83,19 +89,21 @@ public class FlexyBolt extends BaseRichBolt {
 			send_coord = true;
 		} else if (input.getSourceStreamId().equals("coord")) {
 			// Ensure the proper amount of messages came through.
-			// TODO
-			
+			seenCoord += 1;
+
 			// If we have received coordination messages from all our preceding nodes, start releasing.
-			
-			// Release the remaining tuples.
-			pipeline.flush();
-			
-			// Send coord messages.
-			send_coord = true;
+			if (seenCoord == expectedCoord) {
+				// Release the remaining tuples.
+				pipeline.flush();
+
+				// Send coord messages.
+				send_coord = true;
+				seenCoord = 0;
+			}
 		} else {
 			// Either this is data or a new batch has started.
 			
-			// Count the message for the current batch.
+			// FIXME: ??? Count the message for the current batch.
 			
 			// FIXME: Hold one tuple for each batch until coord?
 			
@@ -104,9 +112,12 @@ public class FlexyBolt extends BaseRichBolt {
 		}
 		
 		if (send_coord) {
+//			log.info("Sending coord " + batchid + " " + coord_type);
+			
 			// Send coord messages.
+			collector.emit(input, new Values(batchid, coord_type));
 
-			// Ack the held tuple
+			// FIXME: Ack the held tuple
 		}
 		
 		collector.ack(input);
