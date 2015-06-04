@@ -126,13 +126,13 @@ public class FlexyBolt extends BaseRichBolt {
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		// Add the coordination stream.
-		declarer.declareStream("coord", new Fields("batchid", "type"));
+		declarer.declareStream("coord", new Fields("__batchid", "type"));
 		
 		// Create the outputs.
 		for (Entry<FStream, String> v : idMap.entrySet()) {
 			declarer.declareStream(v.getValue(), 
 					TridentUtils.fieldsConcat(
-							new Fields("batchid"), 
+							new Fields("__batchid"), 
 							v.getKey().getOutputFields()));
 		}
 	}

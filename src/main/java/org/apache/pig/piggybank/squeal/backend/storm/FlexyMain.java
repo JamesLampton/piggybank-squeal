@@ -211,8 +211,7 @@ public class FlexyMain extends Main {
 				}
 				
 				// Use a rich spout batch executor that fixes parts of Storm-368 and tracks metrics.
-				FStream output = topology.newStream(sop.getOperatorKey().toString(), 
-						new ImprovedRichSpoutBatchExecutor(spout_proxy));
+				FStream output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
 				
 				System.out.println("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
 				output = output.name(sop.getLoadFunc().getClass().getSimpleName());

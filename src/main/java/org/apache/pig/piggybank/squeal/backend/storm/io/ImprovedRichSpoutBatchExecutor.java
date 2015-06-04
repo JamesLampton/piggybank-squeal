@@ -313,7 +313,7 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         }        
     }
     
-    static class CaptureCollector implements ISpoutOutputCollector {
+    public static class CaptureCollector implements ISpoutOutputCollector {
 
         TridentCollector _collector;
         public List<Object> ids;

@@ -36,7 +36,7 @@ public class FlexyMasterSpout extends BaseRichSpout {
 
 	private SpoutOutputCollector collector;
 	int cur_state = 0;
-	Integer cur_batch = 0;
+	Long cur_batch = 0L;
 	boolean last_failed = false;
 	Random r;
 

@@ -87,7 +87,7 @@ public class TestStream extends TestCase {
     	props = pig.getPigContext().getProperties();    	
     	props.setProperty("pig.streaming.run.test.cluster", "true");
     	props.setProperty("pig.streaming.run.test.cluster.direct", "true");
-//    	props.setProperty("pig.streaming.run.test.cluster.wait_time", "60000");
+    	props.setProperty("pig.streaming.run.test.cluster.wait_time", "30000");
 //    	props.setProperty("pig.streaming.debug", "true");
     	
     }
@@ -248,12 +248,13 @@ DEBUG: (4,1,1)
 DEBUG: (1,19,1)
 DEBUG: (6,2,1)
     	 */
+//    	explain("hist");
     	registerStore("hist", output);
+    	
 //    	registerStore("x", output);
 //    	registerStore("count_gr", output);
 //    	registerStore("count", output);
     	
-//    	explain("hist");
     }
 
 //    @Test

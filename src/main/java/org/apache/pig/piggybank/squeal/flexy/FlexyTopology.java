@@ -35,6 +35,7 @@ import storm.trident.util.ErrorEdgeFactory;
 import storm.trident.util.IndexedEdge;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.BoltDeclarer;
+import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 
 public class FlexyTopology {
@@ -283,11 +284,10 @@ public class FlexyTopology {
 		return n;
 	}
 
-	public FStream newStream(String name,
-			ImprovedRichSpoutBatchExecutor improvedRichSpoutBatchExecutor) {
+	public FStream newStream(String name, IRichSpout spout) {
 		
 		// Create a new node.
-		FStream n = new FStream(name, this, improvedRichSpoutBatchExecutor);
+		FStream n = new FStream(name, this, spout);
 		
 		_graph.addVertex(n);
 		

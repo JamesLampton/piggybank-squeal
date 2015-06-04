@@ -19,18 +19,13 @@
 package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.io.Serializable;
-import java.util.Map;
-
-import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.planner.processor.TridentContext;
 import storm.trident.state.StateFactory;
 import storm.trident.util.TridentUtils;
-import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 
 public class FStream implements Serializable {
@@ -38,7 +33,7 @@ public class FStream implements Serializable {
 	private String name;
 	private transient FlexyTopology parent;
 	private NodeType nodeType;
-	private ImprovedRichSpoutBatchExecutor spout;
+	private IRichSpout spout;
 	private int parallelismHint;
 	private Fields output_fields;
 	private Fields input_fields;
@@ -63,7 +58,7 @@ public class FStream implements Serializable {
 	}
 
 	public FStream(String name, FlexyTopology parent,
-			ImprovedRichSpoutBatchExecutor spout) {
+			IRichSpout spout) {
 		this(name, parent, NodeType.SPOUT);
 		this.setSpout(spout);
 	}
@@ -132,6 +127,27 @@ public class FStream implements Serializable {
 		return n;
 	}
 	
+	public Fields getAppendOutputFields() {
+		switch (nodeType) {
+		case FUNCTION:
+			return output_fields;
+		case GROUPBY:
+			return output_fields;
+		case MERGE:
+		case SHUFFLE:
+			// Pull a predecessor.
+			return ((FStream[]) 
+					parent.getIncomingEdgesOf(this).toArray())[0]
+							.getGroupingFields();
+		case PROJECTION:
+			return output_fields;
+		case SPOUT:
+			return getOutputFields();
+		default:
+			throw new RuntimeException("Unknown node type:" + nodeType);
+		}
+	}
+	
 	public Fields getOutputFields() {
 		switch (nodeType) {
 		case FUNCTION:
@@ -147,13 +163,17 @@ public class FStream implements Serializable {
 		case PROJECTION:
 			return output_fields;
 		case SPOUT:
-			return spout.getOutputFields();
+			return TridentUtils.getSingleOutputStreamFields(spout);
 		default:
 			throw new RuntimeException("Unknown node type:" + nodeType);
 		}
 	}
 	
-	private void setSpout(ImprovedRichSpoutBatchExecutor spout) {
+	public Fields getInputFields() {
+		return input_fields;
+	}
+	
+	private void setSpout(IRichSpout spout) {
 		this.spout = spout;
 	}
 
@@ -169,13 +189,14 @@ public class FStream implements Serializable {
 		this.input_fields = input;
 		this.output_fields = output;
 		
+		// XXX: Unnecessary due to projection view code.
 		// Ensure that the fields in output are present in the input.
-		for (String field : output.toList()) {
-			if (!input.contains(field)) {
-				throw new RuntimeException("Missing field [" + field + 
-						"] in projecting " + input + " to " + output);
-			}
-		}
+//		for (String field : output.toList()) {
+//			if (!input.contains(field)) {
+//				throw new RuntimeException("Missing field [" + field + 
+//						"] in projecting " + input + " to " + output);
+//			}
+//		}
 	}
 
 	private void setGroupBySpec(Fields group_key, CombinerAggregator stage1Agg,
@@ -249,7 +270,7 @@ public class FStream implements Serializable {
 		return func;
 	}
 
-	public ImprovedRichSpoutBatchExecutor getSpout() {
+	public IRichSpout getSpout() {
 		return spout;
 	}
 }
