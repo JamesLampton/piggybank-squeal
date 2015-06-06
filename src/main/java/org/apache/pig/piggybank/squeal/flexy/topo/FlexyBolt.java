@@ -38,6 +38,7 @@ public class FlexyBolt extends BaseRichBolt {
 	private Integer cur_batch = null;
 	private int expectedCoord = 0;
 	private int seenCoord = 0;
+	private Fields input_fields;
 
 	public FlexyBolt(int bolt_id, FStream root) {
 		this.bolt_id = bolt_id;
@@ -49,8 +50,9 @@ public class FlexyBolt extends BaseRichBolt {
 	@Override
 	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 		// Create the execution pipeline.
-		pipeline = new PipelineExecutor(root, G);
-		pipeline.prepare(stormConf, context, collector);
+		pipeline = PipelineExecutor.build(root, G);
+		pipeline.prepare(stormConf, context, collector, this);
+		
 		this.collector = collector;
 		
 		// Determine how many coord messages to expect.
@@ -67,11 +69,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 	@Override
 	public void execute(Tuple input) {
-//		log.info(input);
-		
-		int batchid = input.getInteger(0);
-		
-//		cur_batch  = batchid;
+//		log.info("BOLT RECEIVED:" + input);
 		
 		boolean send_coord = false;
 		int coord_type = 1; // propagate
@@ -107,11 +105,18 @@ public class FlexyBolt extends BaseRichBolt {
 			
 			// FIXME: Hold one tuple for each batch until coord?
 			
+			// Strip off the __batchid.
+			// FIXME input.select(input_fields);
+			
 			// Execute the assembly.
 			send_coord = pipeline.execute(input);
+			if (send_coord) {
+				pipeline.flush();
+			}
 		}
 		
-		if (send_coord) {
+		if (send_coord) {			
+			long batchid = input.getLong(0);
 //			log.info("Sending coord " + batchid + " " + coord_type);
 			
 			// Send coord messages.
@@ -130,10 +135,7 @@ public class FlexyBolt extends BaseRichBolt {
 		
 		// Create the outputs.
 		for (Entry<FStream, String> v : idMap.entrySet()) {
-			declarer.declareStream(v.getValue(), 
-					TridentUtils.fieldsConcat(
-							new Fields("__batchid"), 
-							v.getKey().getOutputFields()));
+			declarer.declareStream(v.getValue(), v.getKey().getOutputFields());
 		}
 	}
 
@@ -171,7 +173,7 @@ public class FlexyBolt extends BaseRichBolt {
 		return sb.toString();
 	}
 
-	public int getParallelism() {
+	public Integer getParallelism() {
 		// Find the max parallelism.
 		int parallelism = 0;
 		for (FStream v : G.vertexSet()) {
@@ -180,6 +182,10 @@ public class FlexyBolt extends BaseRichBolt {
 			}
 		}
 
+		if (parallelism == 0) {
+			return null;
+		}
+		
 		return parallelism;
 	}
 
@@ -195,8 +201,20 @@ public class FlexyBolt extends BaseRichBolt {
 		idMap.put(source, name);
 	}
 	
+	public String getExposedName(FStream source) {
+		return idMap.get(source);
+	}
+	
 	public String getStreamName(FStream source) {
 		return idMap.get(source);
+	}
+
+	public void setInputSchema(Fields input_fields) {
+		this.input_fields = input_fields;
+	}
+	
+	public Fields getInputSchema() {
+		return input_fields;
 	}
 
 }

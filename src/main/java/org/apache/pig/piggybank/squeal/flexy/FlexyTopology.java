@@ -25,6 +25,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.topo.FlexyBolt;
@@ -43,6 +45,7 @@ public class FlexyTopology {
 	int index_counter = 0;
 	private HashMap<FStream, FlexyBolt> boltMap;
 	private DefaultDirectedGraph<FlexyBolt, IndexedEdge<FStream>> boltG;
+	private static final Log log = LogFactory.getLog(FlexyTopology.class);
 	
 	public FlexyTopology() {
 		_graph = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new ErrorEdgeFactory());
@@ -241,12 +244,16 @@ public class FlexyTopology {
 			String source_name = source_b.getName();
 			String source_stream = source_b.getStreamName(edge.source);
 			
+			// Pull the schema of the input.
+			b.setInputSchema(edge.source.getOutputFields());
+
+//			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
+			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
 			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
 				b_builder.shuffleGrouping(source_name, source_stream);
 			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
 				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
 			}
-			
 		}
 	}
 

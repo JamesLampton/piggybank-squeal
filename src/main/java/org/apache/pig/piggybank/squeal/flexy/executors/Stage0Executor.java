@@ -22,11 +22,14 @@ import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
@@ -41,7 +44,8 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	private CombinerAggregator<T> agg;
 	private TridentCollector collector;
 	private int max_size = 1000;
-	private int expiry_ms;
+	private int expiry_ms = 20;
+	private static final Log log = LogFactory.getLog(Stage0Executor.class);
 	
 	public Stage0Executor(CombinerAggregator<T> agg) {
 		this.agg = agg;
@@ -91,10 +95,10 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 
 	@Override
 	public void onRemoval(RemovalNotification<Writable, T> note) {
-		if (!note.wasEvicted()) {
+		if (!(note.wasEvicted() || note.getCause() == RemovalCause.EXPLICIT)) {
 			return;
 		}
-		
+
 		// Emit the record.
 		collector.emit(new Values(note.getKey(), note.getValue()));
 	}

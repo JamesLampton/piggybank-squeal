@@ -31,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
@@ -83,6 +84,7 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 import storm.trident.operation.BaseFilter;
 import storm.trident.tuple.TridentTuple;
+import storm.trident.util.TridentUtils;
 
 public class FlexyMain extends Main {
 	
@@ -303,7 +305,8 @@ public class FlexyMain extends Main {
 				
 				// Group and Aggregate.
 				FStream output = merged_input.groupBy(
-						group_key, 
+						group_key,
+						orig_input_fields,
 						agg_fact.getStage1Aggregator(), 
 						agg_fact.getStage2Aggregator(), 
 						agg_fact.getStoreAggregator(),

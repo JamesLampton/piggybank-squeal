@@ -81,7 +81,7 @@ public class TriReduce extends StormBaseFunction {
 
 	public void setup(String stormId, int partitionIndex) throws IOException {
 		for (POStore store : stores) {
-			StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign);
+			StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, false);
 			store.setStoreImpl(impl);
 			store.setUp();
 		}

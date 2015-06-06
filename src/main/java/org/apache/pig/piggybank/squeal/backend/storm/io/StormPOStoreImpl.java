@@ -22,6 +22,8 @@ import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.mapreduce.ContextFactory;
+import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.OutputFormat;
 import org.apache.hadoop.mapreduce.RecordWriter;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
@@ -39,16 +41,16 @@ public class StormPOStoreImpl extends POStoreImpl {
 	private TaskAttemptContext context;
 	private AtomicInteger sign;
 
-	public StormPOStoreImpl(String stormId, int partitionIndex, AtomicInteger sign) {
+	public StormPOStoreImpl(String stormId, int partitionIndex, AtomicInteger sign, boolean isMap) {
 		this.partitionIndex = partitionIndex;
 		this.sign = sign;
 		
 		// "storm.id" "PigStorm-3-0-1-1363457130" PigStorm-3-0-1-1363536122
-		// TaskAttemptID(String jtIdentifier, int jobId, boolean isMap, int taskId, int id) 
-		TaskAttemptID attemptID = new TaskAttemptID(stormId, (int)(System.currentTimeMillis()/1000), true, partitionIndex, sign.get());
+		TaskAttemptID attemptID = HadoopShims.createTaskAttemptID(stormId, (int)(System.currentTimeMillis()/1000), isMap, partitionIndex, sign.get());
 		
 		// Create a fake TaskContext for this stuff.
 		Configuration outputConf = new Configuration();
+		System.err.println("Creating task attempt context: " + attemptID);
 		this.context = HadoopShims.createTaskAttemptContext(outputConf, attemptID);
 	}
 

@@ -31,6 +31,7 @@ import org.apache.hadoop.io.Writable;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
@@ -144,7 +145,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 
 	@Override
 	public void onRemoval(RemovalNotification<Writable, T> note) {
-		if (!note.wasEvicted()) {
+		if (!(note.wasEvicted() || note.getCause() == RemovalCause.EXPLICIT)) {
 			return;
 		}
 		

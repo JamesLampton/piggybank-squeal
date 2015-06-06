@@ -129,7 +129,7 @@ public class TriMapFunc extends StormBaseFunction {
 
 		public void setup(String stormId, int partitionIndex) throws IOException {
 			for (POStore store : stores) {
-				StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign);
+				StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, true);
 				store.setStoreImpl(impl);
 				store.setUp();
 			}

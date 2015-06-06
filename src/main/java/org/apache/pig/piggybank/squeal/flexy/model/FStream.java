@@ -38,10 +38,10 @@ public class FStream implements Serializable {
 	private Fields output_fields;
 	private Fields input_fields;
 	private Function func;
-	private boolean stage0Agg = false;
+	private boolean isStage0Agg = false;
 	private Fields group_key;
+	private CombinerAggregator stage0Agg;
 	private CombinerAggregator stage1Agg;
-	private CombinerAggregator stage2Agg;
 	private CombinerAggregator storeAgg;
 	private StateFactory sf;
 	private Fields func_project;
@@ -109,7 +109,8 @@ public class FStream implements Serializable {
 		return n;
 	}
 
-	public FStream groupBy(Fields group_key, 
+	public FStream groupBy(Fields group_key,
+			Fields input,
 			CombinerAggregator stage1Agg, 
 			CombinerAggregator stage2Agg, 
 			CombinerAggregator storeAgg, 
@@ -119,7 +120,7 @@ public class FStream implements Serializable {
 		// Create a groupby node.
 		FStream n = new FStream(null, parent, NodeType.GROUPBY);
 
-		n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf, output_fields);
+		n.setGroupBySpec(group_key, input, stage1Agg, stage2Agg, storeAgg, sf, output_fields);
 		
 		// Link the nodes.
 		parent.link(this, n);
@@ -132,6 +133,9 @@ public class FStream implements Serializable {
 		case FUNCTION:
 			return output_fields;
 		case GROUPBY:
+			if (nodeType == NodeType.GROUPBY && isStage0Agg) {
+				return new Fields("stage1_vl");
+			}
 			return output_fields;
 		case MERGE:
 		case SHUFFLE:
@@ -153,7 +157,7 @@ public class FStream implements Serializable {
 		case FUNCTION:
 			return TridentUtils.fieldsConcat(input_fields, output_fields);
 		case GROUPBY:
-			return TridentUtils.fieldsConcat(group_key, output_fields);
+			return TridentUtils.fieldsConcat(group_key, getAppendOutputFields());
 		case MERGE:
 		case SHUFFLE:
 			// Pull a predecessor.
@@ -170,6 +174,9 @@ public class FStream implements Serializable {
 	}
 	
 	public Fields getInputFields() {
+		if (nodeType == NodeType.GROUPBY && !isStage0Agg) {
+			return new Fields("stage1_vl");
+		}
 		return input_fields;
 	}
 	
@@ -199,18 +206,33 @@ public class FStream implements Serializable {
 //		}
 	}
 
-	private void setGroupBySpec(Fields group_key, CombinerAggregator stage1Agg,
+	private void setGroupBySpec(
+			Fields group_key, 
+			Fields input,
+			CombinerAggregator stage1Agg,
 			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, 
 			StateFactory sf, Fields output_fields) {
-		
 		this.group_key = group_key;
-		this.stage1Agg = stage1Agg;
-		this.stage2Agg = stage2Agg;
+		this.stage0Agg = stage1Agg;
+		this.stage1Agg = stage2Agg;
 		this.storeAgg = storeAgg;
 		this.sf = sf;
+		this.input_fields = input;
 		this.output_fields = output_fields;
 	}
 
+	public CombinerAggregator getStage0Agg() {
+		return stage0Agg;
+	}
+	
+	public CombinerAggregator getStage1Agg() {
+		return stage1Agg;
+	}
+	
+	public StateFactory getStateFactory() {
+		return sf;
+	}
+	
 	public NodeType getType() {
 		return nodeType;
 	}
@@ -223,8 +245,8 @@ public class FStream implements Serializable {
 			n.setFunctionInformation(input_fields, func_project, func, output_fields);
 			break;
 		case GROUPBY:
-			n.setGroupBySpec(group_key, stage1Agg, stage2Agg, storeAgg, sf, output_fields);
-			n.setStage0Agg(stage0Agg);
+			n.setGroupBySpec(group_key, input_fields, stage0Agg, stage1Agg, storeAgg, sf, output_fields);
+			n.setStage0Agg(isStage0Agg);
 			break;
 		case MERGE:
 		case SHUFFLE:
@@ -247,7 +269,11 @@ public class FStream implements Serializable {
 	}
 
 	public void setStage0Agg(boolean b) {
-		stage0Agg  = b;
+		isStage0Agg  = b;
+	}
+	
+	public boolean getIsStage0Agg() {
+		return isStage0Agg;
 	}
 
 	public Fields getGroupingFields() {
