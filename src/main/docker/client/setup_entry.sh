@@ -8,7 +8,8 @@ export PATH=$PATH:/opt/hadoop/bin/:/opt/storm/bin:/opt/pig/bin
 if [ -z "$1" ]
 then
     echo Running bash
-    /bin/bash
+    exec /bin/bash
 else
-    $@
+    echo Running $1 ...
+    exec $@
 fi
