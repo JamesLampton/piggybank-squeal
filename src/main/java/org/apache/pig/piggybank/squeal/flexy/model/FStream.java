@@ -229,6 +229,10 @@ public class FStream implements Serializable {
 		return stage1Agg;
 	}
 	
+	public CombinerAggregator getStorageAgg() {
+		return storeAgg;
+	}
+	
 	public StateFactory getStateFactory() {
 		return sf;
 	}
@@ -299,4 +303,6 @@ public class FStream implements Serializable {
 	public IRichSpout getSpout() {
 		return spout;
 	}
+
+
 }

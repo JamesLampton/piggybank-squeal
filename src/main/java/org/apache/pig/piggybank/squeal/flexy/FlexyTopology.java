@@ -235,6 +235,8 @@ public class FlexyTopology {
 			b_builder.allGrouping("FlexyMaster", "commit");
 		}
 		
+		Set<String> sourceBolts = new HashSet<String>();
+		
 		for (IndexedEdge<FStream> edge : boltG.incomingEdgesOf(b)) {
 			// Ensure it exists.
 			FlexyBolt source_b = boltMap.get(edge.source);
@@ -242,6 +244,7 @@ public class FlexyTopology {
 			
 			// Now link it.
 			String source_name = source_b.getName();
+			sourceBolts.add(source_name);
 			String source_stream = source_b.getStreamName(edge.source);
 			
 			// Pull the schema of the input.
@@ -254,6 +257,11 @@ public class FlexyTopology {
 			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
 				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
 			}
+		}
+		
+		for (String source_name : sourceBolts) {
+			// Subscribe to the coordination stream
+			b_builder.allGrouping(source_name, "coord");
 		}
 	}
 

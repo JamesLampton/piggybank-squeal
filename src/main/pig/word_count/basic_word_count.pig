@@ -29,4 +29,5 @@ rmf $output;
 --STORE words_count INTO '$output';
 
 -- Streaming version:
-STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
+explain words_count;
+--STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');

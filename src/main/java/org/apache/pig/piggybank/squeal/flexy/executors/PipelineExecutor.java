@@ -71,7 +71,7 @@ public class PipelineExecutor implements TridentCollector {
 	private String exposedName;
 	private Stage0Executor stage0Exec;
 	private Stage1Executor stage1Exec;
-	private FreshOutputFactory root_tf;
+	private FreshOutputFactory parent_root_tf;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
@@ -97,9 +97,9 @@ public class PipelineExecutor implements TridentCollector {
 		
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
 			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
-			parent_tf = root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
+			parent_tf = parent_root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
 		}
-		
+				
 		TridentOperationContext triContext = new TridentOperationContext(context, parent_tf);
 
 		TridentTuple.Factory output_tf;
@@ -114,15 +114,15 @@ public class PipelineExecutor implements TridentCollector {
 			break;
 		case GROUPBY:
 			proj_output_tf = triContext.makeProjectionFactory(cur.getInputFields());
-			op_output_tf = new TridentTupleView.OperationOutputFactory(parent_tf, cur.getAppendOutputFields());
-			output_tf = op_output_tf;
+			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getOutputFields());
+			output_tf = root_output_tf;
 			
 			// Prepare the agg stuff.
 			if (cur.getIsStage0Agg()) {
 				this.stage0Exec = new Stage0Executor(cur.getStage0Agg());
 				stage0Exec.prepare(stormConf, context, this);
 			} else {
-				this.stage1Exec = new Stage1Executor(cur.getStage0Agg(), cur.getStage1Agg(), cur.getStateFactory());
+				this.stage1Exec = new Stage1Executor(cur.getStage1Agg(), cur.getStorageAgg(), cur.getStateFactory());
 				stage1Exec.prepare(stormConf, context, this);
 			}
 			
@@ -156,23 +156,23 @@ public class PipelineExecutor implements TridentCollector {
 		
 		switch (cur.getType()) {
 		case FUNCTION:
-			// TODO
+		case PROJECTION:
+		case SPOUT: // The ack should occur on the next release of a batch in case commit fails.
+			// Do nothing.
 			break;
 		case GROUPBY:
-			// TODO
-			break;
-		case PROJECTION:
-			// TODO
-			break;
-		case SPOUT:
-			// TODO
+			if (!cur.getIsStage0Agg()) {
+				stage1Exec.commit();
+			}
 			break;
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
 		
 		// Call commit on children.
-		// TODO
+		for (PipelineExecutor child : children) {
+			child.flush();
+		}
 		
 		return ret;
 	}
@@ -181,6 +181,7 @@ public class PipelineExecutor implements TridentCollector {
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
+		case SPOUT:
 			// Do nothing.
 			break;
 		case GROUPBY:
@@ -190,9 +191,6 @@ public class PipelineExecutor implements TridentCollector {
 			} else {
 				stage1Exec.flush();
 			}
-			break;
-		case SPOUT:
-			// TODO
 			break;
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
@@ -238,6 +236,7 @@ public class PipelineExecutor implements TridentCollector {
 	}
 	
 	public boolean execute(Tuple input) {
+//		log.info("execute tuple: " + input);
 		boolean ret = false;
 		
 		switch (cur.getType()) {
@@ -245,13 +244,25 @@ public class PipelineExecutor implements TridentCollector {
 		case GROUPBY:
 		case PROJECTION:
 			// Create the appropriate tuple and move along.
-			throw new RuntimeException("Not implemented yet! " + cur);
-			// TODO
-//			break;
+			execute(parent_root_tf.create(input.getValues()));
+			break;
 		case SPOUT:
+//			log.info("execute tuple spout: " + input);
 			// Check on failures
 			long txid = input.getLong(0);
-			// TODO
+			boolean failed = input.getBoolean(1);
+			// XXX: Assuming batch ids always increase...
+			long last_txid = txid - 1;
+			if(idsMap.containsKey(last_txid)) {
+//				log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
+				for (Object msgId : idsMap.get(last_txid)) {
+					if (failed) {
+						cur.getSpout().fail(msgId);
+					} else {
+						cur.getSpout().ack(msgId);
+					}
+				}
+			}
 //			if(idsMap.containsKey(txid)) {
 //                fail(txid);
 //            }
@@ -287,7 +298,7 @@ public class PipelineExecutor implements TridentCollector {
 			tup = op_output_tf.create((TridentTupleView) parent, values);
 			break;
 		case GROUPBY:
-			tup = op_output_tf.create((TridentTupleView) parent, values);
+			tup = root_output_tf.create(values);
 			break;
 		case PROJECTION:
 			tup = proj_output_tf.create(parent);
@@ -306,7 +317,7 @@ public class PipelineExecutor implements TridentCollector {
 		
 		// Emit if necessary.
 		if (exposedName != null) {
-			log.info("EMIT:" + tup);
+//			log.info("EMIT:" + tup);
 			this.collector.emit(exposedName, tup);
 		}
 	}

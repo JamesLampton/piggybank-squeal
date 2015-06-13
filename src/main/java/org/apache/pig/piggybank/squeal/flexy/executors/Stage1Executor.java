@@ -53,7 +53,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	private int expiry_ms = 20;
 	private StateFactory sf;
 	Map<Writable, T> stateBacklog;
-	List<List<Object>> prefetch;
+	List<List<Object>> prefetch = new ArrayList<List<Object>>();
 	private MapState<T> state;
 	private CombinerAggregator<T> storeAgg;
 	
@@ -89,7 +89,11 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 				.removalListener(this)
 				.build(new CacheLoader<Writable, T>() {
 					@Override
-					public T load(Writable key) throws Exception {
+					public T load(final Writable key) throws Exception {
+						if (!stateBacklog.containsKey(key)) {
+							// Add to prefetch to pull the current data from store.
+							prefetch.add(new ArrayList<Object>() {{ add(key); }} );
+						}
 						return agg.zero();
 					}
 				});
@@ -138,7 +142,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		for (int i = 0; i < prefetch.size(); i++) {
 			T cur = fetched.get(i);
 			if (cur == null) cur = storeAgg.zero();
-			stateBacklog.put((Writable) prefetch.get(0).get(0), cur);
+			stateBacklog.put((Writable) prefetch.get(i).get(0), cur);
 		}
 		prefetch.clear();
 	}
@@ -158,6 +162,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		cur = stateBacklog.get(note.getKey());
 		
 		// Apply the update.
+		// FIXME: There is a bug here. cur is null.
 		cur = storeAgg.combine(cur, note.getValue());
 		
 		// Replace the backlog

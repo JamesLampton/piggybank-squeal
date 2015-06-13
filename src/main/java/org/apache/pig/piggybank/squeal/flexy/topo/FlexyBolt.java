@@ -89,8 +89,11 @@ public class FlexyBolt extends BaseRichBolt {
 			// Ensure the proper amount of messages came through.
 			seenCoord += 1;
 
+//			log.info("seenCoord " + seenCoord + " of " + expectedCoord);
+			
 			// If we have received coordination messages from all our preceding nodes, start releasing.
 			if (seenCoord == expectedCoord) {
+//				log.info("Flushing:" + pipeline);
 				// Release the remaining tuples.
 				pipeline.flush();
 
@@ -99,15 +102,6 @@ public class FlexyBolt extends BaseRichBolt {
 				seenCoord = 0;
 			}
 		} else {
-			// Either this is data or a new batch has started.
-			
-			// FIXME: ??? Count the message for the current batch.
-			
-			// FIXME: Hold one tuple for each batch until coord?
-			
-			// Strip off the __batchid.
-			// FIXME input.select(input_fields);
-			
 			// Execute the assembly.
 			send_coord = pipeline.execute(input);
 			if (send_coord) {
@@ -119,10 +113,8 @@ public class FlexyBolt extends BaseRichBolt {
 			long batchid = input.getLong(0);
 //			log.info("Sending coord " + batchid + " " + coord_type);
 			
-			// Send coord messages.
-			collector.emit(input, new Values(batchid, coord_type));
-
-			// FIXME: Ack the held tuple
+			// Send coord messages. -- Anchored.
+			collector.emit("coord", input, new Values(batchid, coord_type));
 		}
 		
 		collector.ack(input);
