@@ -251,7 +251,7 @@ public class FlexyTopology {
 			b.setInputSchema(edge.source.getOutputFields());
 
 //			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
-			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
+//			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
 			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
 				b_builder.shuffleGrouping(source_name, source_stream);
 			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {

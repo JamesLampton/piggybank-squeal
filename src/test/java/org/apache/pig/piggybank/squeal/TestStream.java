@@ -19,6 +19,11 @@
 package org.apache.pig.piggybank.squeal;
 
 import org.apache.pig.PigServer;
+import org.apache.pig.backend.executionengine.ExecException;
+import org.apache.pig.data.DataType;
+import org.apache.pig.data.Tuple;
+import org.apache.pig.data.TupleFactory;
+import org.apache.pig.impl.util.StorageUtil;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -33,7 +38,13 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.BlockingQueue;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 /*
@@ -66,6 +77,75 @@ public class TestStream extends TestCase {
 	private Properties props;
     static boolean runMiniCluster = false;
 	
+    public void fillQueue(String qName) {
+    	BlockingQueue<byte[]> q = InMemTestQueue.getQueue(qName);
+    	q.add("pepsi pepsi pepsi pepsi pepsi pepsi pepsi.".getBytes());
+        q.add("The quick brown fox jumped over the lazy dog.".getBytes());
+        q.add("The quick brown fox jumped over the lazy dog.".getBytes());
+        q.add("The quick brown fox jumped over the lazy dog.".getBytes());
+        q.add("Mary had a little lamb.".getBytes());
+        q.add("This will be encoded into json.".getBytes());
+        q.add("defeat of deduct went over defence before detail?".getBytes());
+    }
+    
+    public Map<Tuple, Integer> drainAndMerge(String qName, List<String> validate) throws ExecException {
+    	BlockingQueue<byte[]> q = InMemTestQueue.getQueue(qName);
+    	List<byte[]> results = new ArrayList<byte[]>();
+    	q.drainTo(results);
+    	
+//		System.err.println("Fetched q@" + qName + " == " + q.hashCode() + " result count: " + results.size());
+    	
+    	// Parse the results into tuples, then run the merge.
+    	Map<Tuple, Integer> mt = new HashMap<Tuple, Integer>();
+    	for (byte[] buf : results) {
+    		// Parse the tuple.
+//    		System.out.println("ZZ " + new String(buf));
+    		Tuple t = StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t');
+    		// Get ready to "copy".
+    		List<Object> contents = t.getAll();
+    		// Pull the sign.
+    		Integer sign = DataType.toInteger(contents.remove(t.size() - 1));
+    		// Create a new tuple.
+    		t = TupleFactory.getInstance().newTuple(contents);
+    		// Pull the current value
+    		Integer cur = mt.get(t);
+    		if (cur == null) {
+    			mt.put(t, sign);
+    		} else {
+    			cur += sign;
+    			if (cur == 0) {
+    				mt.remove(t);
+    			} else {
+    				mt.put(t, cur);
+    			}
+    		}	
+    	}
+    	
+    	if (validate != null) {
+    		// Parse the validation set and check to see if all the tuples are covered.
+    		for (String s : validate) {
+    			byte[] buf = s.getBytes();
+    			Tuple t = StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t');
+    			int sign = -1;
+    			// Pull the current value
+        		Integer cur = mt.get(t);
+        		if (cur == null) {
+        			mt.put(t, sign);
+        		} else {
+        			cur += sign;
+        			if (cur == 0) {
+        				mt.remove(t);
+        			} else {
+        				mt.put(t, cur);
+        			}
+        		}
+    		}
+    	} else {
+    		System.out.println(mt);
+    	}
+    	
+    	return mt;
+    }
     
     @Override
     @Before
@@ -87,7 +167,7 @@ public class TestStream extends TestCase {
     	props = pig.getPigContext().getProperties();    	
     	props.setProperty("pig.streaming.run.test.cluster", "true");
     	props.setProperty("pig.streaming.run.test.cluster.direct", "true");
-    	props.setProperty("pig.streaming.run.test.cluster.wait_time", "30000");
+    	props.setProperty("pig.streaming.run.test.cluster.wait_time", "15000");
 //    	props.setProperty("pig.streaming.debug", "true");
     	
     }
@@ -211,9 +291,16 @@ public class TestStream extends TestCase {
 //    	stopfile.delete();
 //    }
     
-    void registerStore(String alias, String path) throws Exception {
+    void registerStore(String alias, String path, boolean inMem) throws Exception {
     	pig.deleteFile(path);
-    	pig.registerQuery("STORE " + alias + " INTO '" + path + "' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');");
+    	if (inMem) {
+    		// Pull the queue and clear it.
+    		InMemTestQueue.getQueue(alias).clear();
+    		
+    		pig.registerQuery("STORE " + alias + " INTO '" + path + "' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.TestStore', '"+ alias + "', 'true');");
+    	} else {
+        	pig.registerQuery("STORE " + alias + " INTO '" + path + "' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');");    		
+    	}
     }
     
     @Test
@@ -221,11 +308,11 @@ public class TestStream extends TestCase {
 //    	props.setProperty("pig.exec.nocombiner", "true");
     	String output = "/tmp/testWCHist";
     	
-    	// storm.trident.testing.FixedBatchSpout
-    	// backtype.storm.testing.FixedTupleSpout
+    	fillQueue("wcTest");
+    	
     	pig.registerQuery("x = LOAD '/dev/null' USING " +
     			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
-    				"'org.apache.pig.piggybank.squeal.TestSentenceSpout', '', '3') AS (sentence:chararray);");
+    				"'org.apache.pig.piggybank.squeal.TestSpout', '[\"wcTest\"]', '3') AS (sentence:bytearray);");
 
     	// STREAM is asynchronous is how it returns results, we don't have enough to make it work in this case.
 //    	pig.registerQuery("x = STREAM x THROUGH `tr -d '[:punct:]'` AS (sentence:chararray);");
@@ -249,39 +336,54 @@ DEBUG: (1,19,1)
 DEBUG: (6,2,1)
     	 */
 //    	explain("hist");
-    	registerStore("hist", output);
+    	registerStore("hist", output, true);
     	
-//    	registerStore("x", output);
-//    	registerStore("count_gr", output);
-//    	registerStore("count", output);
+    	List<String> expected = new ArrayList<String>();
+    	expected.add("3\t6");
+    	expected.add("4\t1");
+    	expected.add("1\t19");
+    	expected.add("6\t2");
     	
+    	Map<Tuple, Integer> leftover = drainAndMerge("hist", expected);
+    	if (leftover.size() != 0) {
+    		fail("Unexpected return value: " + leftover);
+    	}
     }
 
-//    @Test
-//    public void testWindow() throws Exception {
-//    	String output = "/tmp/testWindow";
-//    	pig.registerQuery("x = LOAD '/dev/null' USING " +
-//    			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
-//    				"'org.apache.pig.piggybank.squeal.TestSentenceSpout') AS (sentence:chararray);");
-//    	
-//    	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
-//    	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
-//    	pig.registerQuery("x = FILTER x BY word == 'the';");
-//    	props.setProperty("count_gr_window_opts", "{\"0\":2}");
+    @Test
+    public void testWindow() throws Exception {
+    	fillQueue("windowTest");
+    	
+    	String output = "/tmp/testWindow";
+    	pig.registerQuery("x = LOAD '/dev/null' USING " +
+    			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
+    			"'org.apache.pig.piggybank.squeal.TestSpout', '[\"windowTest\"]', '3') AS (sentence:bytearray);");
+    	
+    	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
+    	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
+    	pig.registerQuery("x = FILTER x BY word == 'the';");
+    	props.setProperty("count_gr_window_opts", "{\"0\":2}");
 //    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 0, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
-//    	pig.registerQuery("count_gr = GROUP x BY word;");
-//    	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
-////    	props.setProperty("hist_gr_window_opts", "{\"0\":2}");
-////    	props.setProperty("hist_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 4, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
-//    	pig.registerQuery("hist_gr = GROUP count BY wc;");
-//    	pig.registerQuery("hist = FOREACH hist_gr GENERATE group AS wc, COUNT(count) AS freq;");
-//    	pig.registerQuery("hist = FILTER hist BY freq > 0;");
-//
-////    	registerStore("count", output);
-////    	explain("count");
-////    	pig.registerQuery("STORE count INTO '/dev/null/1';");
-////    	explain("hist");
-////    	pig.registerQuery("STORE hist INTO '/dev/null/1';");
-//    	
-//    }
+    	pig.registerQuery("count_gr = GROUP x BY word;");
+    	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
+//    	pig.registerQuery("count = FILTER count by wc > 0"); // FIXME: BUGGG!!!! necessary due to issue with combiner handling oddity.
+
+    	registerStore("count", output, true);
+//    	explain("count");
+    	
+    	List<String> expected = new ArrayList<String>();
+    	expected.add("the\t2");
+    	expected.add("the\t2");
+    	expected.add("the\t2");
+    	
+    	Map<Tuple, Integer> leftover = drainAndMerge("count", expected);
+    	
+    	// Remove the funk from the combiner issue
+    	byte[] buf = "\t0".getBytes();
+    	leftover.remove(StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t'));
+    	
+    	if (leftover.size() != 0) {
+    		fail("Unexpected return value: " + leftover);
+    	}
+    }
 }

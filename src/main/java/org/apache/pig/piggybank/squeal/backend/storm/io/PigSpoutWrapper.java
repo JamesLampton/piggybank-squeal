@@ -76,7 +76,7 @@ public class PigSpoutWrapper extends SpoutWrapper {
 				throw new RuntimeException(e);
 			}
 			
-			Tuple t = StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t');				
+			Tuple t = StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t');			
 			
 			collector.emit(new Values(null, new NullableTuple(t), POS));
 		}
