@@ -9,9 +9,9 @@ fi
 
 # Stop the containers
 echo Killing...
-docker kill ${basename}_storm ${basename}_zookeeper ${basename}_hadoop
+docker kill ${basename}_storm ${basename}_zookeeper ${basename}_hadoop ${basename}_rabbit
 
 # Remove them.
 echo Removing...
-docker rm ${basename}_storm ${basename}_zookeeper ${basename}_hadoop
+docker rm ${basename}_storm ${basename}_zookeeper ${basename}_hadoop ${basename}_rabbit
 

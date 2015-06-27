@@ -198,6 +198,8 @@ public class StormLauncher extends Launcher {
             sp.UDFs.add("org.apache.hadoop.util.PlatformName");
             sp.UDFs.add("com.google.protobuf.ServiceException");
             
+            sp.UDFs.add("org.htrace.Trace");
+            
             sp.UDFs.add("org.apache.commons.collections.map.UnmodifiableMap");
             
             // Add one or more of these.

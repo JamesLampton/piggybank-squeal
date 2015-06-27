@@ -6,6 +6,7 @@ set pig.streaming.run.test.cluster.wait_time '60000';
 DEFINE JSONPath org.apache.pig.piggybank.evaluation.JSONPath();
 
 -- Register the normal piggybank.
+%default piggybankpath '/opt/pig/contrib/piggybank/java/piggybank.jar'
 REGISTER $piggybankpath;
 %default time_format 'EEE MMM dd HH:mm:ss Z yyyy';
 
@@ -17,9 +18,15 @@ DEFINE LENGTH org.apache.pig.piggybank.evaluation.string.LENGTH();
 -- Batch version:
 --raw_msgs = LOAD 'sample.gz' USING TextLoader() AS (msg:chararray);
 
+--%default rmqup 'guest:guest@'
+%default rmqup 'guest2:guest'
+%default rmqserver 'rabbit'
+%default vhost 'twitter'
+%default exch 'testfeeder'
+
 -- Streaming version:
 %default msgOutstanding '250';
-raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/twitter", "$exch", "basic_word_count", "$msgOutstanding"]') AS (msg:chararray);
+raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/$vhost", "$exch", "basic_word_count", "$msgOutstanding"]') AS (msg:chararray);
 
 -- Pull out the tweet JSON/source.
 tweets = FOREACH raw_msgs GENERATE FLATTEN(STRSPLIT(msg, '\\t', 2)) AS (tweet_json:chararray, source:int);

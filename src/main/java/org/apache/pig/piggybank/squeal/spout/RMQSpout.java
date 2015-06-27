@@ -26,8 +26,11 @@ import java.util.Random;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.ConsumerCancelledException;
 import com.rabbitmq.client.QueueingConsumer;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
+import com.rabbitmq.client.ShutdownSignalException;
+
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -174,5 +177,27 @@ public class RMQSpout extends BaseRichSpout {
 
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("msg"));
+	}
+	
+	public static void main(String args[]) throws Exception {
+		if (args.length < 2) {
+			System.err.println("Usage: " + RMQSpout.class.getCanonicalName() + " <rmquri> <exchange> [queuename] ");
+			return;
+		}
+		
+		RMQSpout rmq;
+		if (args.length == 2) {
+			rmq = new RMQSpout(args[0], args[1]);
+		} else {
+			rmq = new RMQSpout(args[0], args[3]);
+		}
+		rmq.connect();
+		
+		while (true) {
+			Delivery d = rmq.consumer.nextDelivery();
+			System.out.println(new String(d.getBody()));
+			rmq.channel.basicAck(d.getEnvelope().getDeliveryTag(), false);
+		}
+		
 	}
 }
