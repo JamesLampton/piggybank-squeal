@@ -524,6 +524,9 @@ public class Main {
 		conf.put(Config.TOPOLOGY_WORKERS, 1);
 		conf.put(Config.TOPOLOGY_DEBUG, debug);
 		
+		// Register a Serializer for any Writable.
+		registerSerializer(conf);
+		
 		passPigContextProperties(conf);
 		
 		try {

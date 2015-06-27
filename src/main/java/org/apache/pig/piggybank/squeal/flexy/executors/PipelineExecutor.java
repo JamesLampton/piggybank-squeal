@@ -29,10 +29,13 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
 import org.apache.pig.piggybank.squeal.binner.Binner;
+import org.apache.pig.piggybank.squeal.binner.Binner.BinDecoder;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 import org.apache.pig.piggybank.squeal.flexy.topo.FlexyBolt;
 import org.jgrapht.graph.DefaultDirectedGraph;
+
+import com.esotericsoftware.kryo.io.Input;
 
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.OutputCollector;
@@ -75,6 +78,7 @@ public class PipelineExecutor implements TridentCollector {
 	private Stage1Executor stage1Exec;
 	private FreshOutputFactory parent_root_tf;
 	private Binner binner;
+	private BinDecoder binDecoder;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
@@ -97,15 +101,16 @@ public class PipelineExecutor implements TridentCollector {
 		if (exposedName != null) {
 			// Initialize and prepare a Binner.
 			binner = new Binner();
-			
 			binner.prepare(stormConf, context, collector, exposedName);
 		}
+		
+		binDecoder = new Binner.BinDecoder(stormConf);
 		
 		// Stash this for use later.  TODO: Remove this.
 //		this.collector = collector;
 		
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
-			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
+//			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
 			parent_tf = parent_root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
 		}
 				
@@ -180,7 +185,7 @@ public class PipelineExecutor implements TridentCollector {
 		
 		// Call commit on children.
 		for (PipelineExecutor child : children) {
-			child.flush();
+			child.commit(input);
 		}
 		
 		return ret;
@@ -257,13 +262,14 @@ public class PipelineExecutor implements TridentCollector {
 		case FUNCTION:
 		case GROUPBY:
 		case PROJECTION:
-			// TODO: Decode the tuples within the bin.
-//			for (List<Object> tup : binner.decodeTuples(input.getBinary(1))) {
-//				
-//			}
+			// Decode the tuples within the bin.
+			Input in = new Input(input.getBinary(1));
+			List<Object> list;
+			while (null != (list = binDecoder.decodeList(in))) {
+				// Create the appropriate tuple and move along.
+				execute(parent_root_tf.create(list));				
+			}
 			
-			// Create the appropriate tuple and move along.
-			execute(parent_root_tf.create(input.getValues()));
 			break;
 		case SPOUT:
 //			log.info("execute tuple spout: " + input);
