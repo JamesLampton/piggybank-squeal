@@ -18,6 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy.executors;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -27,6 +28,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
+import org.apache.pig.piggybank.squeal.binner.Binner;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 import org.apache.pig.piggybank.squeal.flexy.topo.FlexyBolt;
@@ -50,7 +52,7 @@ import storm.trident.util.IndexedEdge;
 public class PipelineExecutor implements TridentCollector {
 	private FStream cur;
 	private List<PipelineExecutor> children;
-	private OutputCollector collector;
+//	private OutputCollector collector;  TODO: Remove this.
 //	private TridentTuple.Factory output_tf;
 	private Map stormConf;
 	private TopologyContext context;
@@ -72,6 +74,7 @@ public class PipelineExecutor implements TridentCollector {
 	private Stage0Executor stage0Exec;
 	private Stage1Executor stage1Exec;
 	private FreshOutputFactory parent_root_tf;
+	private Binner binner;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
@@ -91,9 +94,15 @@ public class PipelineExecutor implements TridentCollector {
 		this.context = context;
 		
 		exposedName = flexyBolt.getExposedName(cur);
+		if (exposedName != null) {
+			// Initialize and prepare a Binner.
+			binner = new Binner();
+			
+			binner.prepare(stormConf, context, collector, exposedName);
+		}
 		
-		// Stash this for use later.
-		this.collector = collector;
+		// Stash this for use later.  TODO: Remove this.
+//		this.collector = collector;
 		
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
 			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
@@ -196,6 +205,11 @@ public class PipelineExecutor implements TridentCollector {
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
 		
+		// Flush any outstanding messages.
+		if (exposedName != null) {
+			binner.flush();
+		}
+		
 		// Call flush on children.
 		for (PipelineExecutor child : children) {
 			child.flush();
@@ -243,6 +257,11 @@ public class PipelineExecutor implements TridentCollector {
 		case FUNCTION:
 		case GROUPBY:
 		case PROJECTION:
+			// TODO: Decode the tuples within the bin.
+//			for (List<Object> tup : binner.decodeTuples(input.getBinary(1))) {
+//				
+//			}
+			
 			// Create the appropriate tuple and move along.
 			execute(parent_root_tf.create(input.getValues()));
 			break;
@@ -318,7 +337,12 @@ public class PipelineExecutor implements TridentCollector {
 		// Emit if necessary.
 		if (exposedName != null) {
 //			log.info("EMIT:" + tup);
-			this.collector.emit(exposedName, tup);
+//			TODO remove: this.collector.emit(exposedName, tup);
+			try {
+				binner.emit(tup);
+			} catch (IOException e) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 
