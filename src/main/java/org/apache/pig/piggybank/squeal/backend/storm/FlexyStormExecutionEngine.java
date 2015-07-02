@@ -28,7 +28,7 @@ import org.apache.pig.tools.pigstats.ScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.MRScriptState;
 import org.apache.pig.tools.pigstats.mapreduce.SimplePigStats;
 
-public class FlexyStormExecutionEngine extends HExecutionEngine {
+public class FlexyStormExecutionEngine extends StormExecutionEngine {
 
 	public FlexyStormExecutionEngine(PigContext pigContext) {
 		this(pigContext, false);
@@ -38,18 +38,4 @@ public class FlexyStormExecutionEngine extends HExecutionEngine {
 		super(pigContext);
 		this.launcher = new StormLauncher(run_local, true);
 	}
-
-	@Override
-	public ScriptState instantiateScriptState() {
-		// ?? This is new, may be useful...
-		MRScriptState ss = new MRScriptState(UUID.randomUUID().toString());
-        ss.setPigContext(pigContext);
-        return ss;
-	}
-
-	@Override
-	public PigStats instantiatePigStats() {
-		return new SimplePigStats();
-	}
-
 }

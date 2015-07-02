@@ -354,8 +354,8 @@ public class PipelineExecutor implements TridentCollector {
 
 	@Override
 	public void reportError(Throwable t) {
-		// TODO Auto-generated method stub
-		
+		// FIXME: Fail the message?
+		throw new RuntimeException(t);
 	}
 
 	public static PipelineExecutor build(FStream cur, DefaultDirectedGraph<FStream, IndexedEdge<FStream>> subG) {

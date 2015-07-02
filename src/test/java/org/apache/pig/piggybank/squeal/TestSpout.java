@@ -19,7 +19,9 @@
 package org.apache.pig.piggybank.squeal;
 
 import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import backtype.storm.spout.SpoutOutputCollector;
@@ -33,7 +35,10 @@ public class TestSpout extends BaseRichSpout {
 	private String qName;
 	private BlockingQueue<byte[]> q;
 	private SpoutOutputCollector collector;
-
+	private Random rand;
+	private ConcurrentHashMap<Integer, byte[]> outstanding;
+	private BlockingQueue<byte[]> failures;
+	
 	public TestSpout(String qName) {
 		this.qName = qName;
 	}
@@ -41,7 +46,10 @@ public class TestSpout extends BaseRichSpout {
 	@Override
 	public void open(Map conf, TopologyContext context,	SpoutOutputCollector collector) {
 		q = InMemTestQueue.getQueue(qName);
+		failures = InMemTestQueue.getFailed(qName);
 		this.collector = collector;
+		rand = new Random();
+		outstanding = new ConcurrentHashMap<Integer, byte[]>();
 	}
 
 	@Override
@@ -49,7 +57,9 @@ public class TestSpout extends BaseRichSpout {
 		try {
 			byte[] cur = q.poll(10, TimeUnit.MILLISECONDS);
 			if (cur != null) {
-				collector.emit(new Values(cur));
+				int msgid = rand.nextInt();
+				outstanding.put(msgid, cur);
+				collector.emit(new Values(cur), msgid);
 			}
 		} catch (InterruptedException e) {
 			throw new RuntimeException(e);
@@ -60,4 +70,14 @@ public class TestSpout extends BaseRichSpout {
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		declarer.declare(new Fields("buf"));
 	}
+	
+	@Override
+    public void ack(Object msgId) {
+		outstanding.remove(msgId);
+    }
+
+    @Override
+    public void fail(Object msgId) {
+    	failures.add(outstanding.remove(msgId));
+    }
 }

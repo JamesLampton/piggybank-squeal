@@ -97,9 +97,9 @@ public class Binner {
 
 		public List<Integer> chooseTasks(int taskId, final TridentTuple tup) {
 			if (gr.is_set_fields()) {
-				return new ArrayList() {{ add(targetTasks.get(tup.select(gr_fields).hashCode() % num_tasks)); }};
+				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
 			} else if (gr.is_set_shuffle()) {
-				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks) % num_tasks)); }};
+				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
 			} else if (wrapped != null) {
 				return wrapped.chooseTasks(taskId, tup);
 			} else {

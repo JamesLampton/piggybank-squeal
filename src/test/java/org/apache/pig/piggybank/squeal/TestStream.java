@@ -28,14 +28,9 @@ import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
-
 import junit.framework.TestCase;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -50,7 +45,6 @@ import org.apache.commons.logging.LogFactory;
 /*
  * Testcase aimed at testing Squeal.
 */
-@RunWith(JUnit4.class)
 public class TestStream extends TestCase {
     
     private final Log log = LogFactory.getLog(getClass());
@@ -296,6 +290,7 @@ public class TestStream extends TestCase {
     	if (inMem) {
     		// Pull the queue and clear it.
     		InMemTestQueue.getQueue(alias).clear();
+    		InMemTestQueue.getQueue(alias).clear();
     		
     		pig.registerQuery("STORE " + alias + " INTO '" + path + "' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.TestStore', '"+ alias + "', 'true');");
     	} else {
@@ -348,6 +343,9 @@ DEBUG: (6,2,1)
     	if (leftover.size() != 0) {
     		fail("Unexpected return value: " + leftover);
     	}
+    	if (InMemTestQueue.getFailed("hist").size() > 0) {
+    		fail("Some messages failed");
+    	}
     }
 
     @Test
@@ -385,5 +383,79 @@ DEBUG: (6,2,1)
     	if (leftover.size() != 0) {
     		fail("Unexpected return value: " + leftover);
     	}
+    	
+    	if (InMemTestQueue.getFailed("hist").size() > 0) {
+    		fail("Some messages failed");
+    	}
+    }
+    
+    @Test
+    public void testParallelism() throws Exception {
+    	pig.registerQuery("x = LOAD '/dev/null' USING " +
+    			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
+    			"'org.apache.pig.piggybank.squeal.TestSpout', '[\"windowTest\"]', '3') AS (sentence:bytearray);");
+    	pig.registerQuery("count_gr = GROUP x BY RANDOM() PARALLEL 20;");
+
+    	// Make sure FetchOnly is properly disabled.
+    	ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    	pig.explain("x", new PrintStream(baos));
+    	assertTrue(baos.toString().matches("(?si).*TestSpout-x parallel: 3.*"));
+    	
+    	// Ensure that parallelism doesn't bleed to the spout.
+    	baos.reset();
+    	pig.explain("count_gr", new PrintStream(baos));
+    	
+    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout-count_gr-count_gr parallel: 3.*"));
+    	assertTrue(baos.toString().matches("(?si).*b1 parallel: 20.*"));
+    	
+    	System.err.print(new String(baos.toByteArray()));
+//    	explain("x");
+    }
+    
+    @Test
+    public void testFailureModeMapSide() throws Exception {
+    	fillQueue("failureTest");
+  
+    	// FIXME: Set the batch size to one for more fidelity.
+//    	pig.getPigContext().getProperties().setProperty(key, value);
+    	
+    	String output = "/tmp/testFailures";
+    	pig.registerQuery("x = LOAD '/dev/null' USING " +
+    			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
+    			"'org.apache.pig.piggybank.squeal.TestSpout', '[\"failureTest\"]', '3') AS (sentence:bytearray);");
+    	
+    	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
+    	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
+    	
+    	pig.registerQuery("failpepsi = FOREACH x GENERATE word, org.apache.pig.piggybank.squeal.RaiseWhenEqual('pepsi', word);");
+    	
+    	registerStore("failpepsi", output, true);
+    	
+    	Map<Tuple, Integer> leftover = drainAndMerge("failpepsi", null);
+    	
+    	// FIXME: Only emit tuples if the batch commits... -- Determine if a pipeline is a leaf.
+    	// TODO: Validate stuff.
+    	System.err.println("Results: " + leftover);
+    	System.err.println("Failed: " + InMemTestQueue.getFailed("failpepsi"));
+    }
+    
+    @Test
+    public void testFailureModeReduceSide() throws Exception {
+
+    }
+
+    @Test
+    public void testFailureModeCombine() throws Exception {
+
+    }
+
+    @Test
+    public void testFailureModeStore() throws Exception {
+
+    }
+    
+    @Test
+    public void testFailureModeSpout() throws Exception {
+
     }
 }

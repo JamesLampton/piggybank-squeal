@@ -20,6 +20,7 @@ package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.util.UUID;
 
+import org.apache.pig.PigConfiguration;
 import org.apache.pig.backend.hadoop.executionengine.HExecutionEngine;
 import org.apache.pig.backend.hadoop.executionengine.Launcher;
 import org.apache.pig.impl.PigContext;
@@ -36,6 +37,10 @@ public class StormExecutionEngine extends HExecutionEngine {
 
 	public StormExecutionEngine(PigContext pigContext, boolean run_local) {
 		super(pigContext);
+		
+		// Disable the FetchOptimizer.
+		pigContext.getProperties().setProperty(PigConfiguration.OPT_FETCH, "false");
+		
 		this.launcher = new StormLauncher(run_local, false);
 	}
 

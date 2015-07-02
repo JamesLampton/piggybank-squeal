@@ -24,12 +24,23 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class InMemTestQueue {
 	static ConcurrentHashMap<String, BlockingQueue<byte[]>> _queues = new ConcurrentHashMap<String, BlockingQueue<byte[]>>();
+	static ConcurrentHashMap<String, BlockingQueue<byte[]>> _failed = new ConcurrentHashMap<String, BlockingQueue<byte[]>>();
 	
 	static synchronized public BlockingQueue<byte[]> getQueue(String name) {
 		BlockingQueue<byte[]> cur = _queues.get(name);
 		if (cur == null) {
 			cur = new ArrayBlockingQueue<byte[]>(1024);
 			_queues.put(name, cur);
+		}
+		
+		return cur;
+	}
+	
+	static synchronized public BlockingQueue<byte[]> getFailed(String name) {
+		BlockingQueue<byte[]> cur = _failed.get(name);
+		if (cur == null) {
+			cur = new ArrayBlockingQueue<byte[]>(1024);
+			_failed.put(name, cur);
 		}
 		
 		return cur;

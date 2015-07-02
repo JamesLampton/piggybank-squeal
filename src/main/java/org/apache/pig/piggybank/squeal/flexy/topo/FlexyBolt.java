@@ -89,53 +89,58 @@ public class FlexyBolt extends BaseRichBolt {
 	public void execute(Tuple input) {
 //		log.info("BOLT RECEIVED:" + input);
 		
-		boolean send_coord = false;
-		int coord_type = 1; // propagate
-		
-		// Determine the input type.
-		if (input.getSourceStreamId().equals("commit")) {
-			if (pipeline.commit(input)) {
-				coord_type = 3; // commit success
-			} else {
-				coord_type = 4; // commit fail
-			}
+		try {
+			boolean send_coord = false;
+			int coord_type = 1; // propagate
 
-//			cur_batch = null;
-			
-			send_coord = true;
-		} else if (input.getSourceStreamId().equals("coord")) {
-			// Ensure the proper amount of messages came through.
-			seenCoord += 1;
+			// Determine the input type.
+			if (input.getSourceStreamId().equals("commit")) {
+				if (pipeline.commit(input)) {
+					coord_type = 3; // commit success
+				} else {
+					coord_type = 4; // commit fail
+				}
 
-//			log.info("seenCoord " + seenCoord + " of " + expectedCoord);
-			
-			// If we have received coordination messages from all our preceding nodes, start releasing.
-			if (seenCoord == expectedCoord) {
-//				log.info("Flushing:" + pipeline);
-				// Release the remaining tuples.
-				pipeline.flush();
+				//			cur_batch = null;
 
-				// Send coord messages.
 				send_coord = true;
-				seenCoord = 0;
+			} else if (input.getSourceStreamId().equals("coord")) {
+				// Ensure the proper amount of messages came through.
+				seenCoord += 1;
+
+				//			log.info("seenCoord " + seenCoord + " of " + expectedCoord);
+
+				// If we have received coordination messages from all our preceding nodes, start releasing.
+				if (seenCoord == expectedCoord) {
+					//				log.info("Flushing:" + pipeline);
+					// Release the remaining tuples.
+					pipeline.flush();
+
+					// Send coord messages.
+					send_coord = true;
+					seenCoord = 0;
+				}
+			} else {
+				// Execute the assembly.
+				send_coord = pipeline.execute(input);
+				if (send_coord) {
+					pipeline.flush();
+				}
 			}
-		} else {
-			// Execute the assembly.
-			send_coord = pipeline.execute(input);
-			if (send_coord) {
-				pipeline.flush();
+
+			if (send_coord) {			
+				long batchid = input.getLong(0);
+				//			log.info("Sending coord " + batchid + " " + coord_type);
+
+				// Send coord messages. -- Anchored.
+				collector.emit("coord", input, new Values(batchid, coord_type));
 			}
+
+			collector.ack(input);
+		} catch (Throwable e) {
+			collector.fail(input);
+			// Throw an exception?
 		}
-		
-		if (send_coord) {			
-			long batchid = input.getLong(0);
-//			log.info("Sending coord " + batchid + " " + coord_type);
-			
-			// Send coord messages. -- Anchored.
-			collector.emit("coord", input, new Values(batchid, coord_type));
-		}
-		
-		collector.ack(input);
 	}
 
 	@Override
@@ -187,6 +192,10 @@ public class FlexyBolt extends BaseRichBolt {
 		// Find the max parallelism.
 		int parallelism = 0;
 		for (FStream v : G.vertexSet()) {
+			if (v.getIsStage0Agg()) {
+				// Don't bleed the reduce parallelism to map.
+				continue;
+			}
 			if (v.getParallelism() > parallelism) {
 				parallelism = v.getParallelism();
 			}

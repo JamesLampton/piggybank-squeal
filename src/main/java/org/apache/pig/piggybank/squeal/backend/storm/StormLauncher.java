@@ -33,6 +33,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.pig.ExecType;
+import org.apache.pig.PigConfiguration;
 import org.apache.pig.PigRunner.ReturnCode;
 import org.apache.pig.backend.BackendException;
 import org.apache.pig.backend.datastorage.ContainerDescriptor;
@@ -198,7 +199,13 @@ public class StormLauncher extends Launcher {
             sp.UDFs.add("org.apache.hadoop.util.PlatformName");
             sp.UDFs.add("com.google.protobuf.ServiceException");
             
-            sp.UDFs.add("org.htrace.Trace");
+            // Determine if htrace is in the classpath.
+            try {
+            	pc.getClassLoader().loadClass("org.htrace.Trace");
+            	sp.UDFs.add("org.htrace.Trace");
+            } catch (ClassNotFoundException e) {
+            	// Ignore it.
+            }
             
             sp.UDFs.add("org.apache.commons.collections.map.UnmodifiableMap");
             
@@ -310,7 +317,7 @@ public class StormLauncher extends Launcher {
 	}
 
 	public SOperPlan compile(PhysicalPlan php, PigContext pc) 
-			throws PlanException, IOException, VisitorException {
+			throws PlanException, IOException, VisitorException {		
 		MapReduceLauncher mrlauncher = new MapReduceLauncher();
 		MROperPlan mrp = mrlauncher.compile(php, pc);
 		
