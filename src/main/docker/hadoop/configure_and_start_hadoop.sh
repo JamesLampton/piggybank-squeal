@@ -15,6 +15,10 @@ cat - > /opt/hadoop/etc/hadoop/hdfs-site.xml <<EOM
         <name>dfs.replication</name>
         <value>1</value>
     </property>
+    <property>
+        <name>dfs.namenode.resource.du.reserved</name>
+        <value>1024</value>
+    </property>
 </configuration>
 EOM
 
