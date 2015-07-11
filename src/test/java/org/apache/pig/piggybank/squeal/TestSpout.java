@@ -38,9 +38,15 @@ public class TestSpout extends BaseRichSpout {
 	private Random rand;
 	private ConcurrentHashMap<Integer, byte[]> outstanding;
 	private BlockingQueue<byte[]> failures;
+	private int max_outstanding = -1;
 	
 	public TestSpout(String qName) {
+		this(qName, "-1");
+	}
+	
+	public TestSpout(String qName, String outstanding) {
 		this.qName = qName;
+		max_outstanding  = Integer.parseInt(outstanding);
 	}
 	
 	@Override
@@ -54,15 +60,14 @@ public class TestSpout extends BaseRichSpout {
 
 	@Override
 	public void nextTuple() {
-		try {
-			byte[] cur = q.poll(10, TimeUnit.MILLISECONDS);
-			if (cur != null) {
-				int msgid = rand.nextInt();
-				outstanding.put(msgid, cur);
-				collector.emit(new Values(cur), msgid);
-			}
-		} catch (InterruptedException e) {
-			throw new RuntimeException(e);
+		if (max_outstanding > 0 && outstanding.size() >= max_outstanding) {
+			return;
+		}
+		byte[] cur = q.poll();
+		if (cur != null) {
+			int msgid = rand.nextInt();
+			outstanding.put(msgid, cur);
+			collector.emit(new Values(cur), msgid);
 		}
 	}
 
@@ -79,5 +84,6 @@ public class TestSpout extends BaseRichSpout {
     @Override
     public void fail(Object msgId) {
     	failures.add(outstanding.remove(msgId));
+//    	System.err.println("Failed len: " + failures.size() + " " + System.identityHashCode(failures));
     }
 }

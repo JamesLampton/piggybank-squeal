@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
@@ -44,12 +43,10 @@ import backtype.storm.tuple.Tuple;
 import storm.trident.operation.TridentCollector;
 import storm.trident.operation.TridentOperationContext;
 import storm.trident.tuple.TridentTuple;
-import storm.trident.tuple.TridentTuple.Factory;
 import storm.trident.tuple.TridentTupleView;
 import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
 import storm.trident.tuple.TridentTupleView.OperationOutputFactory;
 import storm.trident.tuple.TridentTupleView.ProjectionFactory;
-import storm.trident.tuple.TridentTupleView.RootFactory;
 import storm.trident.util.IndexedEdge;
 
 public class PipelineExecutor implements TridentCollector {
@@ -79,6 +76,7 @@ public class PipelineExecutor implements TridentCollector {
 	private FreshOutputFactory parent_root_tf;
 	private Binner binner;
 	private BinDecoder binDecoder;
+	private Tuple anchor;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
@@ -191,7 +189,9 @@ public class PipelineExecutor implements TridentCollector {
 		return ret;
 	}
 
-	public void flush() {		
+	public void flush(Tuple input) {	
+		anchor = input;
+		
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
@@ -212,102 +212,131 @@ public class PipelineExecutor implements TridentCollector {
 		
 		// Flush any outstanding messages.
 		if (exposedName != null) {
-			binner.flush();
+			binner.flush(input);
 		}
 		
 		// Call flush on children.
 		for (PipelineExecutor child : children) {
-			child.flush();
+			child.flush(input);
 		}
+		
+		anchor = null;
 	}
 
-	private void execute(TridentTuple tup) {
+	private void execute(TridentTuple tup, Tuple anchor) {
 //		log.info("execute: " + cur + " " + tup);
 
-		parent = tup;
+		this.anchor = anchor;
+		try {
+			parent = tup;
 
-		switch (cur.getType()) {
-		case FUNCTION:
-			// Project as appropriate
-			tup = proj_output_tf.create(tup);
-			cur.getFunc().execute(tup, this);
-			break;
-		case GROUPBY:
-			// Pull the key.
-			Writable key = (Writable) tup.getValueByField(cur.getGroupingFields().get(0));
-			
-			// Project as appropriate
-			tup = proj_output_tf.create(tup);
-			if (cur.getIsStage0Agg()) {
-				this.stage0Exec.execute(key, tup);
-			} else {
-				this.stage1Exec.execute(key, tup);
+			switch (cur.getType()) {
+			case FUNCTION:
+				// Project as appropriate
+				tup = proj_output_tf.create(tup);
+				cur.getFunc().execute(tup, this);
+				break;
+			case GROUPBY:
+				// Pull the key.
+				Writable key = (Writable) tup.getValueByField(cur.getGroupingFields().get(0));
+
+				// Project as appropriate
+				tup = proj_output_tf.create(tup);
+				if (cur.getIsStage0Agg()) {
+					this.stage0Exec.execute(key, tup);
+				} else {
+					this.stage1Exec.execute(key, tup);
+				}
+				break;
+			case PROJECTION:
+				emit(null);
+				break;
+			case SPOUT:
+				throw new RuntimeException("Spouts shouldn't be called in this manner...");
+			default:
+				throw new RuntimeException("Unknown node type:" + cur.getType());
 			}
-			break;
-		case PROJECTION:
-			emit(null);
-			break;
-		case SPOUT:
-			throw new RuntimeException("Spouts shouldn't be called in this manner...");
-		default:
-			throw new RuntimeException("Unknown node type:" + cur.getType());
+		} finally {
+			this.anchor = null;
 		}
 	}
 	
 	public boolean execute(Tuple input) {
 //		log.info("execute tuple: " + input);
 		boolean ret = false;
+		this.anchor = input;
 		
-		switch (cur.getType()) {
-		case FUNCTION:
-		case GROUPBY:
-		case PROJECTION:
-			// Decode the tuples within the bin.
-			Input in = new Input(input.getBinary(1));
-			List<Object> list;
-			while (null != (list = binDecoder.decodeList(in))) {
-				// Create the appropriate tuple and move along.
-				execute(parent_root_tf.create(list));				
-			}
-			
-			break;
-		case SPOUT:
-//			log.info("execute tuple spout: " + input);
-			// Check on failures
-			long txid = input.getLong(0);
-			boolean failed = input.getBoolean(1);
-			// XXX: Assuming batch ids always increase...
-			long last_txid = txid - 1;
-			if(idsMap.containsKey(last_txid)) {
-//				log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
-				for (Object msgId : idsMap.get(last_txid)) {
-					if (failed) {
-						cur.getSpout().fail(msgId);
-					} else {
-						cur.getSpout().ack(msgId);
+		try {
+			switch (cur.getType()) {
+			case FUNCTION:
+			case GROUPBY:
+			case PROJECTION:
+				// Decode the tuples within the bin.
+				Input in = new Input(input.getBinary(1));
+				List<Object> list;
+				while (null != (list = binDecoder.decodeList(in))) {
+					// Create the appropriate tuple and move along.
+					execute(parent_root_tf.create(list), anchor);				
+				}
+
+				break;
+			case SPOUT:
+				//			log.info("execute tuple spout: " + input);
+				// Check on failures
+				long txid = input.getLong(0);
+				boolean failed = input.getBoolean(1);
+				// XXX: Assuming batch ids always increase...
+				long last_txid = txid - 1;
+				if(idsMap.containsKey(last_txid)) {
+					if (failed && idsMap.get(last_txid).size() > 0) { 
+						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
+					}
+					for (Object msgId : idsMap.remove(last_txid)) {
+						if (failed) {
+							cur.getSpout().fail(msgId);
+						} else {
+							cur.getSpout().ack(msgId);
+						}
 					}
 				}
+				//			if(idsMap.containsKey(txid)) {
+				//                fail(txid);
+				//            }
+
+				// Release some tuples.
+				_collector.reset(this);
+				Exception spoutException = null;
+				for(int i=0; i < maxBatchSize; i++) {
+					try {
+						cur.getSpout().nextTuple();
+					} catch (Exception e) {
+						// Delay this until we have added the emitted ids to the idsMap.
+						spoutException = e;
+						break;
+					}
+					if(_collector.numEmitted < i) {
+						break;
+					}
+				}
+
+				// Save off the emitted ids.
+				idsMap.put(txid, _collector.ids);
+
+				if (spoutException != null) {
+					// Fail the ids.
+					for (Object msgId : idsMap.remove(txid)) {
+						cur.getSpout().fail(msgId);
+					}
+					throw new RuntimeException(spoutException);
+				}
+				
+				ret = true;
+				break;
+			default:
+				throw new RuntimeException("Unknown node type:" + cur.getType());
 			}
-//			if(idsMap.containsKey(txid)) {
-//                fail(txid);
-//            }
-			
-			// Release some tuples.
-			_collector.reset(this);
-			for(int i=0; i < maxBatchSize; i++) {
-                cur.getSpout().nextTuple();
-                if(_collector.numEmitted < i) {
-                    break;
-                }
-            }
-			
-			// Save off the emitted ids.
-			idsMap.put(txid, _collector.ids);
-			
-			ret = true;
-			break;
-		default:
-			throw new RuntimeException("Unknown node type:" + cur.getType());
+		} finally {
+			anchor = null;
 		}
 		
 		return ret;
@@ -337,7 +366,7 @@ public class PipelineExecutor implements TridentCollector {
 		
 		// Call all the children.
 		for (PipelineExecutor child : children) {
-			child.execute(tup);
+			child.execute(tup, anchor);
 		}
 		
 		// Emit if necessary.
@@ -345,7 +374,7 @@ public class PipelineExecutor implements TridentCollector {
 //			log.info("EMIT:" + tup);
 //			TODO remove: this.collector.emit(exposedName, tup);
 			try {
-				binner.emit(tup);
+				binner.emit(tup, anchor);
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -354,7 +383,8 @@ public class PipelineExecutor implements TridentCollector {
 
 	@Override
 	public void reportError(Throwable t) {
-		// FIXME: Fail the message?
+		t.printStackTrace();
+		// Let the flexy bolt clean this mess up.
 		throw new RuntimeException(t);
 	}
 

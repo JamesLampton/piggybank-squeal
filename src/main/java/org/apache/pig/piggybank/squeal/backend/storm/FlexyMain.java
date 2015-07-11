@@ -66,6 +66,7 @@ import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
+import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.yaml.snakeyaml.Yaml;
@@ -383,6 +384,13 @@ public class FlexyMain extends Main {
 	
 	protected StormTopology getTopology() {
 		return ft.build();
+	}
+	
+	public void registerSerializer(Config conf) {
+		super.registerSerializer(conf);
+		
+		// Squeal Types
+	    conf.registerSerialization(FlexyTracer.class, FlexyTracer.TracerKryoSerializer.class);
 	}
 	
 	public static void main(String[] args) throws Exception {

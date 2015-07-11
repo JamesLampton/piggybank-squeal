@@ -38,6 +38,7 @@ public class FlexyMasterSpout extends BaseRichSpout {
 	int cur_state = 0;
 	Long cur_batch = 0L;
 	boolean last_failed = false;
+	long start_ts = 0;
 	Random r;
 
 	@Override
@@ -49,12 +50,18 @@ public class FlexyMasterSpout extends BaseRichSpout {
 
 	@Override
 	public void nextTuple() {
-//		int enter_state = cur_state;
+		int enter_state = cur_state;
 		
 		if (cur_state == 0) {
 			// Start a new batch.
 			collector.emit("start", new Values(cur_batch, last_failed), r.nextInt());
 			last_failed = false;
+			long now = System.currentTimeMillis();
+			if (start_ts != 0 && (now-start_ts) > 10000) {
+				System.err.println("Batch: " + cur_batch + " " + (now-start_ts) + " ms" );
+			}
+			start_ts = now;
+			
 			cur_batch ++;
 			cur_state ++;
 		} else if (cur_state == 1) {
@@ -68,13 +75,14 @@ public class FlexyMasterSpout extends BaseRichSpout {
 		} else if (cur_state == 4) {
 			// Commit failed, roll back.
 			collector.emit("commit", new Values(cur_batch, false), r.nextInt());
+			cur_state ++;
 		} else {
 			// Do nothing.
 		}
 		
-//		if (cur_state != enter_state) {
+		if (cur_state != enter_state) {
 //			log.info(cur_batch + " switched: " + enter_state + " -> " + cur_state);
-//		}
+		}
 	}
 
 	@Override

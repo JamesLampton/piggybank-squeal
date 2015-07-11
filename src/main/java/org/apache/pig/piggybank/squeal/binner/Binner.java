@@ -42,6 +42,7 @@ import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
@@ -128,7 +129,7 @@ public class Binner {
 		
 	}
 
-	public void emit(TridentTuple tup) throws IOException {
+	public void emit(TridentTuple tup, Tuple anchor) throws IOException {
 		for (Grouper gr : groupings) {
 			// Calculate the destinations.
 			for (Integer dest : gr.chooseTasks(taskId, tup)) {				
@@ -145,21 +146,21 @@ public class Binner {
 				// Determine if we need to flush this buffer
 				if (curOut.out.position() > _write_thresh) {
 					bins.remove(dest);
-					_flush(curOut);
+					_flush(curOut, anchor);
 				}
 			}
 		}
 	}
 
-	private void _flush(OutCollector curOut) {
+	private void _flush(OutCollector curOut, Tuple anchor) {
 		// Emit curOut.
-		collector.emit(exposedName, new Values(curOut.aKey, curOut.out.toBytes()));
+		collector.emit(exposedName, anchor, new Values(curOut.aKey, curOut.out.toBytes()));
 	}
 	
-	public void flush() {
+	public void flush(Tuple input) {
 		// Flush all the bins.
 		for (Entry<Integer, OutCollector> ent : bins.entrySet()) {
-			_flush(ent.getValue());
+			_flush(ent.getValue(), input);
 		}
 		bins.clear();
 	}

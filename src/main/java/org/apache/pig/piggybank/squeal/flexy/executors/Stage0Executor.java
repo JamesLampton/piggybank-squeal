@@ -46,6 +46,8 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	private int max_size = 1000;
 	private int expiry_ms = 20;
 	private static final Log log = LogFactory.getLog(Stage0Executor.class);
+	Throwable lastThrown = null;
+	Writable activeKey = null;
 	
 	public Stage0Executor(CombinerAggregator<T> agg) {
 		this.agg = agg;
@@ -80,17 +82,38 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		try {
 			// Pull the current value.
 			T cur = cache.get(key);
+			activeKey = key;
+			
 			// Merge the new value.
 			T next = agg.combine(cur, agg.init(tuple));
 			// Replace the cached value.
+//			System.err.println("  s0exec: " + key + " cur -- " + cur + " next -- " + next);
 			cache.put(key, next);
-		} catch (ExecutionException e) {
+			if (lastThrown != null) {
+				try {
+					collector.reportError(lastThrown);
+				} finally {
+					lastThrown = null;
+				}
+			}
+			
+		} catch (Exception e) {
 			collector.reportError(e);
+		} finally {
+			activeKey = null;
 		}
 	}
 	
 	public void flush() {
+//		if (cache.size() > 0) { System.err.println("		XXXX FLUSHING XXXX"); }
 		cache.invalidateAll();
+		if (lastThrown != null) {
+			try {
+				collector.reportError(lastThrown);
+			} finally {
+				lastThrown = null;
+			}
+		}
 	}
 
 	@Override
@@ -98,8 +121,17 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		if (!(note.wasEvicted() || note.getCause() == RemovalCause.EXPLICIT)) {
 			return;
 		}
+		if (activeKey != null && activeKey.equals(note.getKey())) {
+//			System.err.println("Cache expired during update: " + activeKey + " " + note.getKey() + " " + note.getCause());
+			return;
+		}
 
-		// Emit the record.
-		collector.emit(new Values(note.getKey(), note.getValue()));
+		try {
+//			System.err.println("  s0emit: " + note.getCause() + " " + note.getKey() + " " + note.getValue());
+			// Emit the record.
+			collector.emit(new Values(note.getKey(), note.getValue()));
+		} catch (Throwable e) {
+			lastThrown = e;
+		}
 	}
 }

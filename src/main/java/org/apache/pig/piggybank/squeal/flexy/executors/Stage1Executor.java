@@ -39,7 +39,6 @@ import backtype.storm.task.TopologyContext;
 import backtype.storm.tuple.Values;
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.TridentCollector;
-import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import storm.trident.state.map.MapState;
 import storm.trident.tuple.TridentTuple;
@@ -56,6 +55,8 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	List<List<Object>> prefetch = new ArrayList<List<Object>>();
 	private MapState<T> state;
 	private CombinerAggregator<T> storeAgg;
+	private Throwable lastThrown = null;
+	private Writable activeKey;
 	
 	public Stage1Executor(CombinerAggregator<T> agg, CombinerAggregator<T> storeAgg, StateFactory sf) {
 		this.agg = agg;
@@ -101,22 +102,48 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		this.collector = collector;
 	}
 	
-	public void execute(Writable key, TridentTuple tuple) {
+	public void execute(final Writable key, TridentTuple tuple) {
 		try {
 			// Pull the current value.
 			T cur = cache.get(key);
+			activeKey = key;
+			if (cur == null) {
+				if (!stateBacklog.containsKey(key)) {
+					// Add to prefetch to pull the current data from store.
+					prefetch.add(new ArrayList<Object>() {{ add(key); }} );
+				}
+				cur = agg.zero();
+			}
+			
 			// Merge the new value.
 			T next = agg.combine(cur, agg.init(tuple));
+			
 			// Replace the cached value.
 			cache.put(key, next);
-		} catch (ExecutionException e) {
+			if (lastThrown != null) {
+				try {
+					collector.reportError(lastThrown);
+				} finally {
+					lastThrown = null;
+				}
+			}
+		} catch (Exception e) {
 			collector.reportError(e);
+		} finally {
+			activeKey = null;
 		}
 		
 	}
 	
 	public void flush() {
 		cache.invalidateAll();
+		if (lastThrown != null) {
+			try {
+				collector.reportError(lastThrown);
+			} finally {
+				lastThrown = null;
+			}
+		}
 	}
 	
 	public void commit() {
@@ -142,6 +169,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		for (int i = 0; i < prefetch.size(); i++) {
 			T cur = fetched.get(i);
 			if (cur == null) cur = storeAgg.zero();
+//			System.err.println("Prefetched: " + prefetch.get(i).get(0) + " -- " + cur);
 			stateBacklog.put((Writable) prefetch.get(i).get(0), cur);
 		}
 		prefetch.clear();
@@ -153,22 +181,33 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 			return;
 		}
 		
-		// Determine if the current value is in the backlog or the prefetch.
-		T cur;
-		if (!stateBacklog.containsKey(note.getKey())) {
-			// Pull the values in from the prefetch.
-			runPrefetch();
+		if (activeKey != null && activeKey.equals(note.getKey())) {
+//			System.err.println("Cache expired during update: " + activeKey + " " + note.getKey() + " " + note.getCause());
+			return;
 		}
-		cur = stateBacklog.get(note.getKey());
+
 		
-		// Apply the update.
-		// FIXME: There is a bug here. cur is null.
-		cur = storeAgg.combine(cur, note.getValue());
-		
-		// Replace the backlog
-		stateBacklog.put(note.getKey(), cur);
-		
-		// Emit the result.
-		collector.emit(new Values(note.getKey(), cur));
+		try {
+			// Determine if the current value is in the backlog or the prefetch.
+			T cur;
+			if (!stateBacklog.containsKey(note.getKey())) {
+				// Pull the values in from the prefetch.
+				runPrefetch();
+			}
+			cur = stateBacklog.get(note.getKey());
+//			System.err.println("stateBacklogged: k=<" + note.getKey() + "> v=" + cur);
+
+			// Apply the update.
+			// FIXME: There is a bug here. cur is null. -- may be gone 20150708
+			cur = storeAgg.combine(cur, note.getValue());
+
+			// Replace the backlog
+			stateBacklog.put(note.getKey(), cur);
+
+			// Emit the result.
+			collector.emit(new Values(note.getKey(), cur));
+		} catch (Throwable e) {
+			lastThrown = e;
+		}
 	}
 }

@@ -55,7 +55,7 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 
 	@Override
 	public MapIdxWritable init(TridentTuple tuple) {
-//		System.out.println("init: " + tuple + " identityInit: " + identityInit + " agg: " + agg);
+//		System.out.println("  init: " + tuple + " identityInit: " + identityInit + " agg: " + agg);
 		if (identityInit) {
 			return (MapIdxWritable) tuple.get(0);
 		}
@@ -86,7 +86,9 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 			throw new RuntimeException("null combine: " + val1 + " " + val2);
 		}
 		ret.put(CUR, combined);
-			
+
+//		System.out.println("	result -- combine: " + ret);
+
 		return ret;
 	}
 	
@@ -94,6 +96,11 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 		@Override
 		public List<NullableTuple> getTuples(Text which) {
 			return CombineWrapper.getTuples(this, which);
+		}
+		
+		@Override
+		public String toString() {
+			return System.identityHashCode(this) + "_" + super.toString();
 		}
 		
 		@Override

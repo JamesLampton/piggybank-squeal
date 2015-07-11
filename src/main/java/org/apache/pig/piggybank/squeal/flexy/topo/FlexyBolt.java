@@ -26,6 +26,7 @@ import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
 import org.apache.pig.piggybank.squeal.flexy.executors.PipelineExecutor;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -53,10 +54,13 @@ public class FlexyBolt extends BaseRichBolt {
 	private PipelineExecutor pipeline;
 	Map<FStream, String> idMap = new HashMap<FStream, String>();
 	private OutputCollector collector;
-	private Integer cur_batch = null;
 	private int expectedCoord = 0;
 	private int seenCoord = 0;
 	private Fields input_fields;
+	
+	Map<Integer, Long> _observe_count = new HashMap<Integer, Long>();
+	Map<Integer, Long> _c0_queue_acc = new HashMap<Integer, Long>();
+	Map<Integer, Long> _c0_c1_diff_acc = new HashMap<Integer, Long>();
 
 	public FlexyBolt(int bolt_id, FStream root) {
 		this.bolt_id = bolt_id;
@@ -78,9 +82,9 @@ public class FlexyBolt extends BaseRichBolt {
 		for (Entry<GlobalStreamId, Grouping> prev : 
 			context.getSources(context.getThisComponentId()).entrySet()) {
 			if (prev.getKey().get_streamId().equals("coord")) {
-				c++;
+				c += context.getComponentTasks(prev.getKey().get_componentId()).size();
 			}
-//			log.info(prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
+//			log.info(getName() + " || " + prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
 		}
 		expectedCoord = c;
 	}
@@ -108,13 +112,35 @@ public class FlexyBolt extends BaseRichBolt {
 				// Ensure the proper amount of messages came through.
 				seenCoord += 1;
 
-				//			log.info("seenCoord " + seenCoord + " of " + expectedCoord);
+				// Pull the coord type from the message.
+				coord_type = input.getInteger(1);
 
+				// Pull the tracer.
+				FlexyTracer ft = (FlexyTracer) input.getValue(2);
+				int src = input.getSourceTask();
+				Long total_time = _c0_c1_diff_acc.get(src);
+				if (total_time == null) {
+					total_time = 0L;
+					_c0_c1_diff_acc.put(src, 0L);
+					_c0_queue_acc.put(src, 0L);
+					_observe_count.put(src, 0L);	
+				}
+				
+				total_time += ft.getTotalDelay();
+				_c0_c1_diff_acc.put(src, total_time);
+				_c0_queue_acc.put(src, _c0_queue_acc.get(src) + ft.getEmitQueueTime());
+				long obs_count = _observe_count.get(src) + 1;
+				_observe_count.put(src, obs_count);
+				log.info(getName() + " source: " + src + " avg_delay: " + (1.*total_time/obs_count));
+				
 				// If we have received coordination messages from all our preceding nodes, start releasing.
 				if (seenCoord == expectedCoord) {
-					//				log.info("Flushing:" + pipeline);
+//					log.info(getName() + " seenCoord " + seenCoord + " of " + expectedCoord + " " + coord_type);
 					// Release the remaining tuples.
-					pipeline.flush();
+					pipeline.flush(input);
+					if (coord_type > 1) {
+						pipeline.commit(input);
+					}
 
 					// Send coord messages.
 					send_coord = true;
@@ -124,7 +150,7 @@ public class FlexyBolt extends BaseRichBolt {
 				// Execute the assembly.
 				send_coord = pipeline.execute(input);
 				if (send_coord) {
-					pipeline.flush();
+					pipeline.flush(input);
 				}
 			}
 
@@ -133,20 +159,22 @@ public class FlexyBolt extends BaseRichBolt {
 				//			log.info("Sending coord " + batchid + " " + coord_type);
 
 				// Send coord messages. -- Anchored.
-				collector.emit("coord", input, new Values(batchid, coord_type));
+				collector.emit("coord", input, new Values(batchid, coord_type, new FlexyTracer()));
 			}
 
 			collector.ack(input);
 		} catch (Throwable e) {
+			e.printStackTrace();
 			collector.fail(input);
-			// Throw an exception?
+			// Throw an exception to clear any of the operator states. -- This causes issues while unit testing...
+//			throw new RuntimeException(e);
 		}
 	}
 
 	@Override
 	public void declareOutputFields(OutputFieldsDeclarer declarer) {
 		// Add the coordination stream.
-		declarer.declareStream("coord", new Fields("__batchid", "type"));
+		declarer.declareStream("coord", new Fields("__batchid", "type", "tracer"));
 		
 		// Create the outputs.
 		for (Entry<FStream, String> v : idMap.entrySet()) {
