@@ -289,7 +289,7 @@ public class PipelineExecutor implements TridentCollector {
 				long last_txid = txid - 1;
 				if(idsMap.containsKey(last_txid)) {
 					if (failed && idsMap.get(last_txid).size() > 0) { 
-						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
+//						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
 					}
 					for (Object msgId : idsMap.remove(last_txid)) {
 						if (failed) {

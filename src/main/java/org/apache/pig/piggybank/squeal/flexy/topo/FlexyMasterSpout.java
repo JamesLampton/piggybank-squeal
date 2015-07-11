@@ -60,6 +60,15 @@ public class FlexyMasterSpout extends BaseRichSpout {
 			if (start_ts != 0 && (now-start_ts) > 10000) {
 				System.err.println("Batch: " + cur_batch + " " + (now-start_ts) + " ms" );
 			}
+//			// TODO: Make this tunable.
+//			if (start_ts != 0 && (now-start_ts) < 50) {
+//				log.info("Throttling spout due to batch execution time less than 50 ms " + cur_batch + " " + (now-start_ts));
+//				try {
+//					Thread.sleep(1000);
+//				} catch (InterruptedException e) {
+//					throw new RuntimeException(e);
+//				}
+//			}
 			start_ts = now;
 			
 			cur_batch ++;

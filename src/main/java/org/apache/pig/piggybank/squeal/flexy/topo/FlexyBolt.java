@@ -131,7 +131,8 @@ public class FlexyBolt extends BaseRichBolt {
 				_c0_queue_acc.put(src, _c0_queue_acc.get(src) + ft.getEmitQueueTime());
 				long obs_count = _observe_count.get(src) + 1;
 				_observe_count.put(src, obs_count);
-				log.info(getName() + " source: " + src + " avg_delay: " + (1.*total_time/obs_count));
+				
+//				log.info(getName() + " source: " + src + " avg_delay: " + (1.*total_time/obs_count));
 				
 				// If we have received coordination messages from all our preceding nodes, start releasing.
 				if (seenCoord == expectedCoord) {

@@ -66,7 +66,7 @@ public class StateWrapper {
 	
 	public static StateFactory getStateFactoryFromArgs(String stateFactoryCN, String staticMethod, Object[] args) {
 		if (stateFactoryCN == null) {
-			return new LRUMemoryMapState.Factory(2000);
+			return new LRUMemoryMapState.Factory(100);
 		}
 		
 		try {

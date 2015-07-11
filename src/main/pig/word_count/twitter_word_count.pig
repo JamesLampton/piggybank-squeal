@@ -19,7 +19,7 @@ DEFINE LENGTH org.apache.pig.piggybank.evaluation.string.LENGTH();
 --raw_msgs = LOAD 'sample.gz' USING TextLoader() AS (msg:chararray);
 
 --%default rmqup 'guest:guest@'
-%default rmqup 'guest2:guest'
+%default rmqup 'twitterspout:guest'
 %default rmqserver 'rabbit'
 %default vhost 'twitter'
 %default exch 'testfeeder'
@@ -56,5 +56,5 @@ rmf $output;
 --STORE words_count INTO '$output';
 
 -- Streaming version:
-STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
---STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.storage.RMQStorage', 'amqp://$rmqup@$rmqserver/twitter', '$exch-words');
+--STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
+STORE words_count INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.storage.RMQStorage', 'amqp://$rmqup@$rmqserver/twitter', '$exch-words');
