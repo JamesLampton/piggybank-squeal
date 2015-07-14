@@ -1,0 +1,12 @@
+#topology.receiver.buffer.size: 8
+#topology.transfer.buffer.size: 32
+#topology.executor.receive.buffer.size: 16384
+#topology.executor.send.buffer.size: 16384
+#
+#topology.spout.max.batch.size: 50
+#topology.spout.max.batch.size: 250
+
+#topology.worker.childopts: '-agentlib:hprof=heap=sites,cpu=samples,depth=10,monitor=y,thread=y'
+#topology.worker.childopts: '-agentlib:hprof=heap=sites,file=java.hprof'
+topology.worker.childopts: '-XX:+HeapDumpOnOutOfMemoryError'
+#topology.worker.childopts: '-agentlib:hprof=heap=sites,file=java.hprof.<pid>'

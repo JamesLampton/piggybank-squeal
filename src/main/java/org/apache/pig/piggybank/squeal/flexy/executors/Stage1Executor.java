@@ -146,7 +146,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		}
 	}
 	
-	public void commit() {
+	public void commit(long txid) {
 		// Build lists of updates.
 		List<List<Object>> keys = new ArrayList<List<Object>>(stateBacklog.size());
 		List<T> vals = new ArrayList<T>(stateBacklog.size());
@@ -159,6 +159,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		
 		// Push them out to the state.
 		state.multiPut(keys, vals);
+		state.commit(txid);
 		
 		// Clear the backlog.
 		stateBacklog.clear();

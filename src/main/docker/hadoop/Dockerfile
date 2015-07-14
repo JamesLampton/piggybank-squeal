@@ -4,7 +4,7 @@ MAINTAINER James Lampton <jlampton@gmail.com>
 
 RUN yum install -y which supervisor
 
-RUN ln -s $(dirname $(dirname $(readlink -f $(which java)))) /opt/java_home
+RUN test -e /opt/java_home || ln -s $(dirname $(dirname $(readlink -f $(which java)))) /opt/java_home
 ENV JAVA_HOME /opt/java_home
 ENV HADOOP_CONF_DIR /opt/hadoop/etc/hadoop
 

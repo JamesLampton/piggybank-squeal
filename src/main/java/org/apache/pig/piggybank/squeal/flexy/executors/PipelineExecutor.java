@@ -174,7 +174,7 @@ public class PipelineExecutor implements TridentCollector {
 			break;
 		case GROUPBY:
 			if (!cur.getIsStage0Agg()) {
-				stage1Exec.commit();
+				stage1Exec.commit(input.getLong(0));
 			}
 			break;
 		default:

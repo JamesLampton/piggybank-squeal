@@ -1,5 +1,6 @@
 -- If you run storm-local it will launch a test cluster, the following option specifies how long to wait.
 set pig.streaming.run.test.cluster.wait_time '60000';
+--set pig.streaming.extra.conf 'test_hook.yaml';
 
 -- Register the helper functions.
 
@@ -26,7 +27,7 @@ DEFINE LENGTH org.apache.pig.piggybank.evaluation.string.LENGTH();
 
 -- Streaming version:
 %default msgOutstanding '250';
-raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/$vhost", "$exch", "basic_word_count", "$msgOutstanding"]') AS (msg:chararray);
+raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.RMQSpout', '["amqp://$rmqup@$rmqserver/$vhost", "$exch", "basic_word_count", "$msgOutstanding"]', '4') AS (msg:chararray);
 
 -- Pull out the tweet JSON/source.
 tweets = FOREACH raw_msgs GENERATE FLATTEN(STRSPLIT(msg, '\\t', 2)) AS (tweet_json:chararray, source:int);
@@ -40,7 +41,7 @@ words = FOREACH parsed_tweets GENERATE
 words = FILTER words BY LENGTH(word) > 3;
 words = FOREACH words GENERATE timestamp, LOWER(word) AS word;
 
-words_time_gr = GROUP words BY (word, timestamp);
+words_time_gr = GROUP words BY (word, timestamp) PARALLEL 4;
 words_count = FOREACH words_time_gr GENERATE FLATTEN(group), COUNT(words) AS freq;
 words_count = FILTER words_count BY freq > 4;
 
