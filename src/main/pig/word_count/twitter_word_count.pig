@@ -1,6 +1,6 @@
 -- If you run storm-local it will launch a test cluster, the following option specifies how long to wait.
 set pig.streaming.run.test.cluster.wait_time '60000';
---set pig.streaming.extra.conf 'test_hook.yaml';
+set pig.streaming.extra.conf 'test_hook.yaml';
 
 -- Register the helper functions.
 

@@ -44,19 +44,31 @@ import storm.trident.state.map.MapState;
 import storm.trident.tuple.TridentTuple;
 
 public class Stage1Executor<T> implements RemovalListener<Writable, T> {
+	public static final String CACHE_SIZE_CONF = "flexy.stage1.cache.size";
+	public static final String CACHE_EXPIRY_CONF = "flexy.stage1.cache.expiry_ms";
+	public static final String FLUSH_INTERVAL_CONF = "flexy.stage1.flush.interval";
 	
 	private LoadingCache<Writable, T> cache;
 	private CombinerAggregator<T> agg;
 	private TridentCollector collector;
 	private int max_size = 1000;
-	private int expiry_ms = 20;
+	private int expiry_ms = 1000;
+	
 	private StateFactory sf;
+	
+	// This represents the current state value.
 	Map<Writable, T> stateBacklog;
+	// Values to pull from state.
 	List<List<Object>> prefetch = new ArrayList<List<Object>>();
+	// Expired values to be written.
+	Map<Writable, T> writeAhead;
+	
 	private MapState<T> state;
 	private CombinerAggregator<T> storeAgg;
 	private Throwable lastThrown = null;
 	private Writable activeKey;
+	long last_flush = 0;
+	long flush_interval_ms = -1;
 	
 	public Stage1Executor(CombinerAggregator<T> agg, CombinerAggregator<T> storeAgg, StateFactory sf) {
 		this.agg = agg;
@@ -82,6 +94,16 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		
 		// Create a state backlog.
 		stateBacklog = new HashMap<Writable, T>();
+		// And writeahead
+		writeAhead = new HashMap<Writable, T>();
+		
+		// Pull configurations from conf.
+		Number conf_int = (Number) stormConf.get(CACHE_SIZE_CONF);
+		if (conf_int != null) max_size = conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(CACHE_EXPIRY_CONF);
+		if (conf_int != null) expiry_ms= conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
+		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
 		
 		// Create the cache to hold the current computations before state manipulation.
 		cache = CacheBuilder.newBuilder()
@@ -91,6 +113,11 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 				.build(new CacheLoader<Writable, T>() {
 					@Override
 					public T load(final Writable key) throws Exception {
+						// If this value is in the writeAhead, save it
+						if (writeAhead.containsKey(key)) {
+							stateBacklog.put(key, writeAhead.remove(key));
+						}
+						// Determine if we've fetched the current state.
 						if (!stateBacklog.containsKey(key)) {
 							// Add to prefetch to pull the current data from store.
 							prefetch.add(new ArrayList<Object>() {{ add(key); }} );
@@ -107,13 +134,6 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 			// Pull the current value.
 			T cur = cache.get(key);
 			activeKey = key;
-			if (cur == null) {
-				if (!stateBacklog.containsKey(key)) {
-					// Add to prefetch to pull the current data from store.
-					prefetch.add(new ArrayList<Object>() {{ add(key); }} );
-				}
-				cur = agg.zero();
-			}
 			
 			// Merge the new value.
 			T next = agg.combine(cur, agg.init(tuple));
@@ -136,6 +156,19 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	}
 	
 	public void flush() {
+		if (flush_interval_ms > 0) {
+			// Flush ever so often.
+			long now = System.currentTimeMillis();
+			if (now < flush_interval_ms + last_flush) {
+				return;
+			}
+			last_flush = now;
+		} else if (flush_interval_ms == -1) {
+			// Never flush, but do allow for expiration.
+			cache.cleanUp();
+			return;
+		}
+		
 		cache.invalidateAll();
 		if (lastThrown != null) {
 			try {
@@ -151,7 +184,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		List<List<Object>> keys = new ArrayList<List<Object>>(stateBacklog.size());
 		List<T> vals = new ArrayList<T>(stateBacklog.size());
 		
-		for (Entry<Writable, T> ent : stateBacklog.entrySet()) {
+		for (Entry<Writable, T> ent : writeAhead.entrySet()) {
 			final Writable k = ent.getKey();
 			keys.add(new ArrayList<Object>(1) {{ add(k); }});
 			vals.add(ent.getValue());
@@ -161,8 +194,8 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		state.multiPut(keys, vals);
 		state.commit(txid);
 		
-		// Clear the backlog.
-		stateBacklog.clear();
+		// Clear the writeahead.
+		writeAhead.clear();
 	}
 	
 	public void runPrefetch() {
@@ -178,16 +211,15 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 
 	@Override
 	public void onRemoval(RemovalNotification<Writable, T> note) {
+//		System.err.println("S1 Cache: " + activeKey + " " + note.getKey() + " " + note.getCause() + " " + cache.size());
 		if (!(note.wasEvicted() || note.getCause() == RemovalCause.EXPLICIT)) {
 			return;
 		}
 		
 		if (activeKey != null && activeKey.equals(note.getKey())) {
-//			System.err.println("Cache expired during update: " + activeKey + " " + note.getKey() + " " + note.getCause());
 			return;
 		}
 
-		
 		try {
 			// Determine if the current value is in the backlog or the prefetch.
 			T cur;
@@ -195,15 +227,14 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 				// Pull the values in from the prefetch.
 				runPrefetch();
 			}
-			cur = stateBacklog.get(note.getKey());
+			cur = stateBacklog.remove(note.getKey());
 //			System.err.println("stateBacklogged: k=<" + note.getKey() + "> v=" + cur);
 
 			// Apply the update.
-			// FIXME: There is a bug here. cur is null. -- may be gone 20150708
 			cur = storeAgg.combine(cur, note.getValue());
 
-			// Replace the backlog
-			stateBacklog.put(note.getKey(), cur);
+			// Move things to the writeAhead.
+			writeAhead.put(note.getKey(), cur);
 
 			// Emit the result.
 			collector.emit(new Values(note.getKey(), cur));

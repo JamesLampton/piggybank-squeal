@@ -40,14 +40,20 @@ import storm.trident.operation.TridentCollector;
 import storm.trident.tuple.TridentTuple;
 
 public class Stage0Executor<T> implements RemovalListener<Writable, T> {
+	public static final String CACHE_SIZE_CONF = "flexy.stage0.cache.size";
+	public static final String CACHE_EXPIRY_CONF = "flexy.stage0.cache.expiry_ms";
+	public static final String FLUSH_INTERVAL_CONF = "flexy.stage0.flush.interval";
+
 	private LoadingCache<Writable, T> cache;
 	private CombinerAggregator<T> agg;
 	private TridentCollector collector;
 	private int max_size = 1000;
-	private int expiry_ms = 20;
+	private int expiry_ms = 1000;
 	private static final Log log = LogFactory.getLog(Stage0Executor.class);
 	Throwable lastThrown = null;
 	Writable activeKey = null;
+	long last_flush = 0;
+	long flush_interval_ms = -1;
 	
 	public Stage0Executor(CombinerAggregator<T> agg) {
 		this.agg = agg;
@@ -63,6 +69,14 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	
 	public void prepare(Map stormConf, TopologyContext context, 
 			TridentCollector collector) {
+		
+		// Pull configurations from conf.
+		Number conf_int = (Number) stormConf.get(CACHE_SIZE_CONF);
+		if (conf_int != null) max_size = conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(CACHE_EXPIRY_CONF);
+		if (conf_int != null) expiry_ms= conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
+		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
 		
 		cache = CacheBuilder.newBuilder()
 				.maximumSize(max_size)
@@ -106,6 +120,19 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	
 	public void flush() {
 //		if (cache.size() > 0) { System.err.println("		XXXX FLUSHING XXXX"); }
+		if (flush_interval_ms > 0) {
+			// Flush ever so often.
+			long now = System.currentTimeMillis();
+			if (now < flush_interval_ms + last_flush) {
+				return;
+			}
+			last_flush = now;
+		} else if (flush_interval_ms == -1) {
+			// Never flush, but do allow for expiration.
+			cache.cleanUp();
+			return;
+		}
+		
 		cache.invalidateAll();
 		if (lastThrown != null) {
 			try {
@@ -118,11 +145,11 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 
 	@Override
 	public void onRemoval(RemovalNotification<Writable, T> note) {
+//		System.err.println("S0 Cache: " + activeKey + " " + note.getKey() + " " + note.getCause() + " " + cache.size());
 		if (!(note.wasEvicted() || note.getCause() == RemovalCause.EXPLICIT)) {
 			return;
 		}
 		if (activeKey != null && activeKey.equals(note.getKey())) {
-//			System.err.println("Cache expired during update: " + activeKey + " " + note.getKey() + " " + note.getCause());
 			return;
 		}
 

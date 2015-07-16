@@ -47,6 +47,7 @@ import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
 public class Binner {
+	public static final String WRITE_THRESH_CONF = "flexy.binner.write.threshold";
 	int _write_thresh = 64*1024;
 	private KryoValuesSerializer _ser;
 	private static final Log log = LogFactory.getLog(Binner.class);
@@ -127,6 +128,9 @@ public class Binner {
 		// Grab Kryo instances.
 		_ser = new KryoValuesSerializer(stormConf);
 		
+		// Pull any configuration overrides.
+		Number conf_int = (Number) stormConf.get(WRITE_THRESH_CONF);
+		if (conf_int != null) _write_thresh = conf_int.intValue(); 
 	}
 
 	public void emit(TridentTuple tup, Tuple anchor) throws IOException {

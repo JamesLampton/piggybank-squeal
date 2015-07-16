@@ -151,6 +151,8 @@ public class TestStream extends SquealTestBase {
     	pig.registerQuery("count_gr = GROUP x BY word;");
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
     	
+//    	registerStore("count", output, true);
+    	
 //    	props.setProperty("hist_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 2, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
     	pig.registerQuery("hist_gr = GROUP count BY wc;");
     	pig.registerQuery("hist = FOREACH hist_gr GENERATE group AS wc, COUNT(count) AS freq;");

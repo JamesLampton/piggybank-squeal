@@ -10,3 +10,7 @@
 #topology.worker.childopts: '-agentlib:hprof=heap=sites,file=java.hprof'
 topology.worker.childopts: '-XX:+HeapDumpOnOutOfMemoryError'
 #topology.worker.childopts: '-agentlib:hprof=heap=sites,file=java.hprof.<pid>'
+flexy.stage0.cache.expiry_ms: 10000
+flexy.stage0.cache.size: 10000
+flexy.stage1.cache.expiry_ms: 10000
+flexy.stage1.cache.size: 10000
