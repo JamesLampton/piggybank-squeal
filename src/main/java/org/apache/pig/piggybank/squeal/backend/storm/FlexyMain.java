@@ -284,8 +284,8 @@ public class FlexyMain extends Main {
 				Fields group_key = new Fields(orig_input_fields.get(0) + "_raw");
 				
 				for (FStream input : inputs) {						
-					System.out.println("Setting output name: " + sop.name());
-					input = input.name(sop.name());
+//					System.out.println("Setting output name: " + sop.name());
+//					input = input.name(sop.name());
 
 					// We need to encode the key into a value (sans index) to group properly.
 					input = input.each(
@@ -318,6 +318,9 @@ public class FlexyMain extends Main {
 					output.parallelismHint(sop.getParallelismHint());
 				}
 
+				System.out.println("Setting output name: " + sop.name());
+				output = output.name(sop.name());
+				
 				// Re-alias the raw as the key.
 				output = output.each(
 							group_key,

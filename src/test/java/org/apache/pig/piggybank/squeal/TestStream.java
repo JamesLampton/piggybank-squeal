@@ -235,10 +235,10 @@ DEBUG: (6,2,1)
     	baos.reset();
     	pig.explain("count_gr", new PrintStream(baos));
     	
-    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout-count_gr-count_gr parallel: 3.*"));
-    	assertTrue(baos.toString().matches("(?si).*b1 parallel: 20.*"));
-    	
     	System.err.print(new String(baos.toByteArray()));
+    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout-count_gr-count_gr parallel: 3.*"));
+    	assertTrue(baos.toString().matches("(?si).*b1-count_gr parallel: 20.*"));
+    	
 //    	explain("x");
     }
    
