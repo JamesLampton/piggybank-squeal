@@ -52,18 +52,18 @@ import storm.trident.util.IndexedEdge;
 public class PipelineExecutor implements TridentCollector {
 	private FStream cur;
 	private List<PipelineExecutor> children;
-//	private OutputCollector collector;  TODO: Remove this.
-//	private TridentTuple.Factory output_tf;
+	//	private OutputCollector collector;  TODO: Remove this.
+	//	private TridentTuple.Factory output_tf;
 	private Map stormConf;
 	private TopologyContext context;
 	private static final Log log = LogFactory.getLog(PipelineExecutor.class);
-	
+
 	// Spout stuff
 	CaptureCollector _collector = new CaptureCollector();
 	private int maxBatchSize;
 	public static final String MAX_BATCH_SIZE_CONF = "topology.spout.max.batch.size";
 	static public final int DEFAULT_MAX_BATCH_SIZE = 1000;
-	
+
 	// Assume single active batch at this time.
 	private Map<Long, List<Object>> idsMap = new HashMap<Long, List<Object>>();
 	private OperationOutputFactory op_output_tf;
@@ -87,31 +87,31 @@ public class PipelineExecutor implements TridentCollector {
 			FlexyBolt flexyBolt) {
 		prepare(stormConf, context, collector, null, flexyBolt);
 	}
-	
+
 	private void prepare(Map stormConf, TopologyContext context, 
 			OutputCollector collector, TridentTuple.Factory parent_tf,
 			FlexyBolt flexyBolt) {			
 
 		this.stormConf = stormConf;
 		this.context = context;
-		
+
 		exposedName = flexyBolt.getExposedName(cur);
 		if (exposedName != null) {
 			// Initialize and prepare a Binner.
 			binner = new Binner();
 			binner.prepare(stormConf, context, collector, exposedName);
 		}
-		
+
 		binDecoder = new Binner.BinDecoder(stormConf);
-		
+
 		// Stash this for use later.  TODO: Remove this.
-//		this.collector = collector;
-		
+		//		this.collector = collector;
+
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
-//			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
+			//			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
 			parent_tf = parent_root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
 		}
-				
+
 		TridentOperationContext triContext = new TridentOperationContext(context, parent_tf);
 
 		TridentTuple.Factory output_tf;
@@ -128,7 +128,7 @@ public class PipelineExecutor implements TridentCollector {
 			proj_output_tf = triContext.makeProjectionFactory(cur.getInputFields());
 			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getOutputFields());
 			output_tf = root_output_tf;
-			
+
 			// Prepare the agg stuff.
 			if (cur.getIsStage0Agg()) {
 				this.stage0Exec = new Stage0Executor(cur.getStage0Agg());
@@ -137,7 +137,7 @@ public class PipelineExecutor implements TridentCollector {
 				this.stage1Exec = new Stage1Executor(cur.getStage1Agg(), cur.getStorageAgg(), cur.getStateFactory());
 				stage1Exec.prepare(stormConf, context, this);
 			}
-			
+
 			break;
 		case PROJECTION:
 			proj_output_tf = triContext.makeProjectionFactory(cur.getAppendOutputFields());
@@ -145,19 +145,19 @@ public class PipelineExecutor implements TridentCollector {
 			break;
 		case SPOUT:
 			Number batchSize = (Number) stormConf.get(MAX_BATCH_SIZE_CONF);
-	        if(batchSize==null) batchSize = DEFAULT_MAX_BATCH_SIZE;
-	        maxBatchSize = batchSize.intValue();
-	        
+			if(batchSize==null) batchSize = DEFAULT_MAX_BATCH_SIZE;
+			maxBatchSize = batchSize.intValue();
+
 			// Prepare the spout
 			cur.getSpout().open(stormConf, context, new SpoutOutputCollector(_collector));
-			
+
 			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getAppendOutputFields());
 			output_tf = root_output_tf;
 			break;
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
-		
+
 		for (PipelineExecutor child : children) {
 			child.prepare(stormConf, context, collector, output_tf, flexyBolt);
 		}
@@ -165,7 +165,7 @@ public class PipelineExecutor implements TridentCollector {
 
 	public boolean commit(Tuple input) {
 		boolean ret = true;
-		
+
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
@@ -180,18 +180,18 @@ public class PipelineExecutor implements TridentCollector {
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
-		
+
 		// Call commit on children.
 		for (PipelineExecutor child : children) {
 			child.commit(input);
 		}
-		
+
 		return ret;
 	}
 
 	public void flush(Tuple input) {	
 		anchor = input;
-		
+
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
@@ -199,7 +199,7 @@ public class PipelineExecutor implements TridentCollector {
 			// Do nothing.
 			break;
 		case GROUPBY:
-//			log.info("flush: " + cur);
+			//			log.info("flush: " + cur);
 			if (cur.getIsStage0Agg()) {
 				stage0Exec.flush();
 			} else {
@@ -209,22 +209,22 @@ public class PipelineExecutor implements TridentCollector {
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
-		
+
 		// Flush any outstanding messages.
 		if (exposedName != null) {
 			binner.flush(input);
 		}
-		
+
 		// Call flush on children.
 		for (PipelineExecutor child : children) {
 			child.flush(input);
 		}
-		
+
 		anchor = null;
 	}
 
 	private void execute(TridentTuple tup, Tuple anchor) {
-//		log.info("execute: " + cur + " " + tup);
+		//		log.info("execute: " + cur + " " + tup);
 
 		this.anchor = anchor;
 		try {
@@ -260,27 +260,27 @@ public class PipelineExecutor implements TridentCollector {
 			this.anchor = null;
 		}
 	}
-	
-	public boolean execute(Tuple input) {
-//		log.info("execute tuple: " + input);
-		boolean ret = false;
-		this.anchor = input;
-		
-		try {
-			switch (cur.getType()) {
-			case FUNCTION:
-			case GROUPBY:
-			case PROJECTION:
-				// Decode the tuples within the bin.
-				Input in = new Input(input.getBinary(1));
-				List<Object> list;
-				while (null != (list = binDecoder.decodeList(in))) {
-					// Create the appropriate tuple and move along.
-					execute(parent_root_tf.create(list), anchor);				
-				}
 
-				break;
-			case SPOUT:
+	public boolean execute(Tuple input) {
+		//		log.info("execute tuple: " + input);
+		boolean ret = false;
+
+		switch (cur.getType()) {
+		case FUNCTION:
+		case GROUPBY:
+		case PROJECTION:
+			// Decode the tuples within the bin.
+			Input in = new Input(input.getBinary(1));
+			List<Object> list;
+			while (null != (list = binDecoder.decodeList(in))) {
+				// Create the appropriate tuple and move along.
+				execute(parent_root_tf.create(list), input);				
+			}
+
+			break;
+		case SPOUT:
+			this.anchor = input;
+			try {
 				//			log.info("execute tuple spout: " + input);
 				// Check on failures
 				long txid = input.getLong(0);
@@ -289,7 +289,7 @@ public class PipelineExecutor implements TridentCollector {
 				long last_txid = txid - 1;
 				if(idsMap.containsKey(last_txid)) {
 					if (failed && idsMap.get(last_txid).size() > 0) { 
-//						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
+						//						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
 					}
 					for (Object msgId : idsMap.remove(last_txid)) {
 						if (failed) {
@@ -329,22 +329,22 @@ public class PipelineExecutor implements TridentCollector {
 					}
 					throw new RuntimeException(spoutException);
 				}
-				
-				ret = true;
-				break;
-			default:
-				throw new RuntimeException("Unknown node type:" + cur.getType());
+			} finally {
+				anchor = null;
 			}
-		} finally {
-			anchor = null;
+
+			ret = true;
+			break;
+		default:
+			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
-		
+
 		return ret;
 	}
 
 	@Override
 	public void emit(List<Object> values) {
-//		log.info("Emit: " + cur + " --> " + values + " --> " + exposedName);
+		//		log.info("Emit: " + cur + " --> " + values + " --> " + exposedName);
 		TridentTuple tup = null;
 		// Use the appropriate output factory to create the next tuple.
 		switch (cur.getType()) {
@@ -363,16 +363,16 @@ public class PipelineExecutor implements TridentCollector {
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
 		}
-		
+
 		// Call all the children.
 		for (PipelineExecutor child : children) {
 			child.execute(tup, anchor);
 		}
-		
+
 		// Emit if necessary.
 		if (exposedName != null) {
-//			log.info("EMIT:" + tup);
-//			TODO remove: this.collector.emit(exposedName, tup);
+			//			log.info("EMIT:" + tup);
+			//			TODO remove: this.collector.emit(exposedName, tup);
 			try {
 				binner.emit(tup, anchor);
 			} catch (IOException e) {
@@ -393,7 +393,7 @@ public class PipelineExecutor implements TridentCollector {
 		for (IndexedEdge<FStream> edge : subG.outgoingEdgesOf(cur)) {
 			children.add(build(edge.target, subG));
 		}
-		
+
 		// TODO -- break the executors out by type vs a switch statement...
 		return new PipelineExecutor(cur, children);
 	}

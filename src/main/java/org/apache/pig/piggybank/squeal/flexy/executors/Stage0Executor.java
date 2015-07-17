@@ -103,18 +103,21 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 			// Replace the cached value.
 //			System.err.println("  s0exec: " + key + " cur -- " + cur + " next -- " + next);
 			cache.put(key, next);
-			if (lastThrown != null) {
-				try {
-					collector.reportError(lastThrown);
-				} finally {
-					lastThrown = null;
-				}
-			}
-			
+			checkError();
 		} catch (Exception e) {
 			collector.reportError(e);
 		} finally {
 			activeKey = null;
+		}
+	}
+	
+	void checkError() {
+		if (lastThrown != null) {
+			try {
+				collector.reportError(lastThrown);
+			} finally {
+				lastThrown = null;
+			}
 		}
 	}
 	
@@ -130,17 +133,12 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		} else if (flush_interval_ms == -1) {
 			// Never flush, but do allow for expiration.
 			cache.cleanUp();
+			checkError();
 			return;
 		}
 		
 		cache.invalidateAll();
-		if (lastThrown != null) {
-			try {
-				collector.reportError(lastThrown);
-			} finally {
-				lastThrown = null;
-			}
-		}
+		checkError();
 	}
 
 	@Override

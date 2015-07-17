@@ -57,6 +57,8 @@ public class FlexyBolt extends BaseRichBolt {
 	private int expectedCoord = 0;
 	private int seenCoord = 0;
 	private Fields input_fields;
+	public static final String CRASH_ON_FAILURE_CONF = "flexy.bolt.crash.on.failure";
+	boolean crashOnError = false;
 	
 	Map<Integer, Long> _observe_count = new HashMap<Integer, Long>();
 	Map<Integer, Long> _c0_queue_acc = new HashMap<Integer, Long>();
@@ -87,6 +89,11 @@ public class FlexyBolt extends BaseRichBolt {
 //			log.info(getName() + " || " + prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
 		}
 		expectedCoord = c;
+		
+		if (stormConf.containsKey(CRASH_ON_FAILURE_CONF)) {
+			String v = stormConf.get(CRASH_ON_FAILURE_CONF).toString().substring(0, 1);
+			crashOnError = v.equalsIgnoreCase("t") || v.equalsIgnoreCase("1");
+		}
 	}
 
 	@Override
@@ -168,7 +175,9 @@ public class FlexyBolt extends BaseRichBolt {
 			e.printStackTrace();
 			collector.fail(input);
 			// Throw an exception to clear any of the operator states. -- This causes issues while unit testing...
-//			throw new RuntimeException(e);
+			if (crashOnError) {
+				throw new RuntimeException(e);
+			}
 		}
 	}
 

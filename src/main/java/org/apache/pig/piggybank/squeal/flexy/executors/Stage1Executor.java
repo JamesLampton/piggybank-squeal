@@ -140,19 +140,23 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 			
 			// Replace the cached value.
 			cache.put(key, next);
-			if (lastThrown != null) {
-				try {
-					collector.reportError(lastThrown);
-				} finally {
-					lastThrown = null;
-				}
-			}
+			checkError();
 		} catch (Exception e) {
 			collector.reportError(e);
 		} finally {
 			activeKey = null;
 		}
 		
+	}
+	
+	void checkError() {
+		if (lastThrown != null) {
+			try {
+				collector.reportError(lastThrown);
+			} finally {
+				lastThrown = null;
+			}
+		}
 	}
 	
 	public void flush() {
@@ -166,23 +170,18 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		} else if (flush_interval_ms == -1) {
 			// Never flush, but do allow for expiration.
 			cache.cleanUp();
+			checkError();
 			return;
 		}
 		
 		cache.invalidateAll();
-		if (lastThrown != null) {
-			try {
-				collector.reportError(lastThrown);
-			} finally {
-				lastThrown = null;
-			}
-		}
+		checkError();
 	}
 	
 	public void commit(long txid) {
 		// Build lists of updates.
-		List<List<Object>> keys = new ArrayList<List<Object>>(stateBacklog.size());
-		List<T> vals = new ArrayList<T>(stateBacklog.size());
+		List<List<Object>> keys = new ArrayList<List<Object>>(writeAhead.size());
+		List<T> vals = new ArrayList<T>(writeAhead.size());
 		
 		for (Entry<Writable, T> ent : writeAhead.entrySet()) {
 			final Writable k = ent.getKey();
