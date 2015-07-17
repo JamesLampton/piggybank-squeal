@@ -26,6 +26,8 @@ import java.util.Map.Entry;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 
 import com.google.common.cache.CacheBuilder;
@@ -47,12 +49,18 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	public static final String CACHE_SIZE_CONF = "flexy.stage1.cache.size";
 	public static final String CACHE_EXPIRY_CONF = "flexy.stage1.cache.expiry_ms";
 	public static final String FLUSH_INTERVAL_CONF = "flexy.stage1.flush.interval";
+	public static final String CACHE_STATS_INTERVAL_CONF = "flexy.stage1.cache.stats.interval_min";
+	
+	private static final Log log = LogFactory.getLog(Stage1Executor.class);
 	
 	private LoadingCache<Writable, T> cache;
 	private CombinerAggregator<T> agg;
 	private TridentCollector collector;
 	private int max_size = 1000;
 	private int expiry_ms = 1000;
+	
+	long last_stats_dump = 0;
+	long cache_stats_interval_min = -1;
 	
 	private StateFactory sf;
 	
@@ -104,13 +112,24 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		if (conf_int != null) expiry_ms= conf_int.intValue(); 
 		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
 		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(CACHE_STATS_INTERVAL_CONF);
+		if (conf_int != null) cache_stats_interval_min = conf_int.intValue(); 
 		
 		// Create the cache to hold the current computations before state manipulation.
-		cache = CacheBuilder.newBuilder()
+		CacheBuilder<Writable, T> cb = CacheBuilder.newBuilder()
 				.maximumSize(max_size)
 				.expireAfterWrite(expiry_ms, TimeUnit.MILLISECONDS)
-				.removalListener(this)
-				.build(new CacheLoader<Writable, T>() {
+				.removalListener(this);
+		
+		if (cache_stats_interval_min > 0) {
+			try {
+				cb = cb.recordStats();	
+			} catch (NoSuchMethodError e) {
+				// FIXME: Guava/assembly confusion...
+			}
+		}
+		
+		cache = cb.build(new CacheLoader<Writable, T>() {
 					@Override
 					public T load(final Writable key) throws Exception {
 						// If this value is in the writeAhead, save it
@@ -160,6 +179,14 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	}
 	
 	public void flush() {
+		if (cache_stats_interval_min > 0) {
+			long now = System.currentTimeMillis();
+			if (now >= last_stats_dump + cache_stats_interval_min * 60000) {
+				last_stats_dump = now;
+				log.info("s1 cache stats: " + cache.stats());
+			}
+			
+		}
 		if (flush_interval_ms > 0) {
 			// Flush ever so often.
 			long now = System.currentTimeMillis();

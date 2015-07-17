@@ -43,6 +43,7 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	public static final String CACHE_SIZE_CONF = "flexy.stage0.cache.size";
 	public static final String CACHE_EXPIRY_CONF = "flexy.stage0.cache.expiry_ms";
 	public static final String FLUSH_INTERVAL_CONF = "flexy.stage0.flush.interval";
+	public static final String CACHE_STATS_INTERVAL_CONF = "flexy.stage0.cache.stats.interval_min";
 
 	private LoadingCache<Writable, T> cache;
 	private CombinerAggregator<T> agg;
@@ -54,6 +55,9 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	Writable activeKey = null;
 	long last_flush = 0;
 	long flush_interval_ms = -1;
+	
+	long last_stats_dump = 0;
+	long cache_stats_interval_min = 1;
 	
 	public Stage0Executor(CombinerAggregator<T> agg) {
 		this.agg = agg;
@@ -77,11 +81,23 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		if (conf_int != null) expiry_ms= conf_int.intValue(); 
 		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
 		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
+		conf_int = (Number) stormConf.get(CACHE_STATS_INTERVAL_CONF);
+		if (conf_int != null) cache_stats_interval_min = conf_int.intValue(); 
 		
-		cache = CacheBuilder.newBuilder()
+		CacheBuilder<Writable, T> cb = CacheBuilder.newBuilder()
 				.maximumSize(max_size)
 				.expireAfterWrite(expiry_ms, TimeUnit.MILLISECONDS)
-				.removalListener(this)
+				.removalListener(this);
+		
+		if (cache_stats_interval_min > 0) {
+			try {
+				cb = cb.recordStats();	
+			} catch (NoSuchMethodError e) {
+				// FIXME: Guava/assembly confusion...
+			}
+		}
+				
+		cache = cb
 				.build(new CacheLoader<Writable, T>() {
 					@Override
 					public T load(Writable key) throws Exception {
@@ -122,6 +138,14 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	}
 	
 	public void flush() {
+		if (cache_stats_interval_min > 0) {
+			long now = System.currentTimeMillis();
+			if (now >= last_stats_dump + cache_stats_interval_min * 60000) {
+				last_stats_dump = now;
+				log.info("s0 cache stats: " + cache.stats());
+			}
+		}
+		
 //		if (cache.size() > 0) { System.err.println("		XXXX FLUSHING XXXX"); }
 		if (flush_interval_ms > 0) {
 			// Flush ever so often.
