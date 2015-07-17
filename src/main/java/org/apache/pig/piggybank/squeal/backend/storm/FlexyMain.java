@@ -156,7 +156,7 @@ public class FlexyMain extends Main {
 //						input = TransportMeasureHelper.extractAndRecord(input, sop.name());
 					}
 
-					System.out.println("Setting output name: " + sop.name());
+					log.debug("Setting output name: " + sop.name());
 					input = input.name(sop.name());
 
 					MultiMap<PhysicalOperator, PhysicalOperator> opmap = new MultiMap<PhysicalOperator, PhysicalOperator>();
@@ -216,7 +216,7 @@ public class FlexyMain extends Main {
 				// Use a rich spout batch executor that fixes parts of Storm-368 and tracks metrics.
 				FStream output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
 				
-				System.out.println("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
+				log.debug("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
 				output = output.name(sop.getLoadFunc().getClass().getSimpleName());
 				
 				// Allow more than one to run.
@@ -318,7 +318,7 @@ public class FlexyMain extends Main {
 					output.parallelismHint(sop.getParallelismHint());
 				}
 
-				System.out.println("Setting output name: " + sop.name());
+				log.debug("Setting output name: " + sop.name());
 				output = output.name(sop.name());
 				
 				// Re-alias the raw as the key.
@@ -363,8 +363,8 @@ public class FlexyMain extends Main {
 			
 			sop_streams.put(sop, outputs);
 			
-			System.out.println(sop.name() + " input fields: " + inputs.get(0).getOutputFields());
-			System.out.println(sop.name() + " output fields: " + outputs.get(0).getOutputFields());
+			log.debug(sop.name() + " input fields: " + inputs.get(0).getOutputFields());
+			log.debug(sop.name() + " output fields: " + outputs.get(0).getOutputFields());
 		}
 	};
 	

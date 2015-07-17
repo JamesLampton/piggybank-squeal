@@ -23,6 +23,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PhyPlanSetter;
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.plans.MROpPlanVisitor;
@@ -51,6 +53,7 @@ public class MRtoSConverter extends MROpPlanVisitor {
 
 	private MROperPlan plan;
 	private SOperPlan splan;
+	private static final Log log = LogFactory.getLog(MRtoSConverter.class);
 	
 	// TODO: Track these by the logical operators they represent.
 	private Map<String, StormOper> rootMap = new HashMap<String, StormOper>();;
@@ -147,7 +150,7 @@ public class MRtoSConverter extends MROpPlanVisitor {
 		
 		// Determine if we need to shuffle before this operator.
 		String mapAlias = mo.name();
-		System.out.println("Checking " + mapAlias + " for shuffle or parallelism constraints...");
+		log.info("Checking " + mapAlias + " for shuffle or parallelism constraints...");
 		if (pc.getProperties().getProperty(mapAlias + "_shuffleBefore", "false").equalsIgnoreCase("true")) {
 			mo.shuffleBefore(true);
 		}
@@ -298,7 +301,7 @@ public class MRtoSConverter extends MROpPlanVisitor {
 //			System.out.println("ReplFiles: " + splan.replFiles);
 			if (missingRoots.size() > 0) {
 				// We have some paths that aren't attached to the plan.
-				System.out.println("Missing roots: " + missingRoots);
+				log.warn("Missing roots: " + missingRoots);
 			}
 		} catch (VisitorException e) {
 			e.printStackTrace();

@@ -19,11 +19,14 @@
 package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.io.Serializable;
+import java.util.Set;
+
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 
 import storm.trident.operation.CombinerAggregator;
 import storm.trident.operation.Function;
 import storm.trident.state.StateFactory;
+import storm.trident.util.IndexedEdge;
 import storm.trident.util.TridentUtils;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
@@ -161,9 +164,8 @@ public class FStream implements Serializable {
 		case MERGE:
 		case SHUFFLE:
 			// Pull a predecessor.
-			return ((FStream[]) 
-					parent.getIncomingEdgesOf(this).toArray())[0]
-							.getGroupingFields();
+			FStream pred = ((IndexedEdge<FStream>) parent.getIncomingEdgesOf(this).toArray()[0]).source;
+			return pred.getGroupingFields();
 		case PROJECTION:
 			return output_fields;
 		case SPOUT:
