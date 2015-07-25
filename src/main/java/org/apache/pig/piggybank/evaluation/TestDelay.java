@@ -12,11 +12,11 @@ public class TestDelay extends EvalFunc<Double> {
 	private ExponentialDistribution dist;
 
 	public TestDelay() {
-		this(1.);
+		this("1.");
 	}
 	
-	public TestDelay(double mean) {
-		this.mean = mean;
+	public TestDelay(String mean) {
+		this.mean = Double.parseDouble(mean);
 	}
 
 

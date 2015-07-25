@@ -12,21 +12,25 @@ REGISTER $piggybankpath;
 %default rate '100';
 %default size '1024';
 
+DEFINE sleep100 org.apache.pig.piggybank.evaluation.TestDelay('100.0');
+DEFINE sleep30 org.apache.pig.piggybank.evaluation.TestDelay('30.0');
+
 -- Run the performance spout.
 raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.TestRateSpout', '["$rate", "$size"]', '1');
 
 -- Add an intermediate step to cause a transfer of the raw stuff without entering the storage mechanism
 set raw_msgs_shuffleBefore 'true';
 set raw_msgs_parallel '4';
-raw_msgs = FOREACH raw_msgs GENERATE lastMinute;
+raw_msgs = FOREACH raw_msgs GENERATE lastMinute, sleep100();
 
 --describe raw_msgs;
 gr = GROUP raw_msgs BY lastMinute;
-c = FOREACH gr GENERATE group, COUNT(raw_msgs);
+c = FOREACH gr GENERATE group, COUNT(raw_msgs) AS count, sleep30();
+c = FOREACH c GENERATE group, count;
 
 %default output 'perfoutput';
 rmf $output;
 
---explain c;
+explain c;
 --STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput', '["false"]');
-STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
+--STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
