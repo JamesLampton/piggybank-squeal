@@ -76,7 +76,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	private Throwable lastThrown = null;
 	private Writable activeKey;
 	long last_flush = 0;
-	long flush_interval_ms = -1;
+	long flush_interval_ms = 0;
 	
 	public Stage1Executor(CombinerAggregator<T> agg, CombinerAggregator<T> storeAgg, StateFactory sf) {
 		this.agg = agg;

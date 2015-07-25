@@ -144,7 +144,7 @@ public class MRtoSConverter extends MROpPlanVisitor {
         
 		// Map SOP -- Attach to Spout or to Reduce SOP -- replace LOADs
 		// Optional Spout Point (May hook onto the end of a Reduce SOP)
-		StormOper mo = getSOp(StormOper.OpType.MAP, getAlias(mr.mapPlan, false));
+		StormOper mo = getSOp(StormOper.OpType.MAP, getAlias(mr.mapPlan, true));
 		mo.mapKeyType = mr.mapKeyType;
 		splan.add(mo);
 		

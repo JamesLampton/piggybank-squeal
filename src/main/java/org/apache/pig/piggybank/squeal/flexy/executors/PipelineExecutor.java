@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
@@ -36,6 +37,7 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 
 import com.esotericsoftware.kryo.io.Input;
 
+import backtype.storm.spout.ISpoutWaitStrategy;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -77,6 +79,8 @@ public class PipelineExecutor implements TridentCollector {
 	private Binner binner;
 	private BinDecoder binDecoder;
 	private Tuple anchor;
+	private int emptyStreak = 0;
+	private ISpoutWaitStrategy waitStrategy = null;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
@@ -108,7 +112,7 @@ public class PipelineExecutor implements TridentCollector {
 		//		this.collector = collector;
 
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
-			//			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
+//			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
 			parent_tf = parent_root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
 		}
 
@@ -153,6 +157,24 @@ public class PipelineExecutor implements TridentCollector {
 
 			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getAppendOutputFields());
 			output_tf = root_output_tf;
+			
+			// Pull the spout wait strategy and initialize it.
+			if (stormConf.get("topology.spout.wait.strategy") != null) {
+				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
+				try {
+					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
+					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
+					waitStrategy.prepare(stormConf);
+				} catch (Exception e) {
+					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
+				}
+
+			}
+			
+			break;
+		case SHUFFLE:
+			// Do thinging, we'll pass directly to children later.
+			output_tf = null;
 			break;
 		default:
 			throw new RuntimeException("Unknown node type:" + cur.getType());
@@ -169,6 +191,7 @@ public class PipelineExecutor implements TridentCollector {
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
+		case SHUFFLE:
 		case SPOUT: // The ack should occur on the next release of a batch in case commit fails.
 			// Do nothing.
 			break;
@@ -195,6 +218,7 @@ public class PipelineExecutor implements TridentCollector {
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
+		case SHUFFLE:
 		case SPOUT:
 			// Do nothing.
 			break;
@@ -266,6 +290,12 @@ public class PipelineExecutor implements TridentCollector {
 		boolean ret = false;
 
 		switch (cur.getType()) {
+		case SHUFFLE:
+			// Pass through to children.
+			for (PipelineExecutor child : children) {
+				child.execute(input);
+			}
+			break;
 		case FUNCTION:
 		case GROUPBY:
 		case PROJECTION:
@@ -274,7 +304,7 @@ public class PipelineExecutor implements TridentCollector {
 			List<Object> list;
 			while (null != (list = binDecoder.decodeList(in))) {
 				// Create the appropriate tuple and move along.
-				execute(parent_root_tf.create(list), input);				
+				execute(parent_root_tf.create(list), input);
 			}
 
 			break;
@@ -317,6 +347,16 @@ public class PipelineExecutor implements TridentCollector {
 					if(_collector.numEmitted < i) {
 						break;
 					}
+				}
+				
+				if (_collector.numEmitted == 0) {
+					emptyStreak ++;
+					// Wait if necessary.
+					if (waitStrategy != null) {
+						waitStrategy.emptyEmit(emptyStreak);
+					} 
+				} else {
+					emptyStreak = 0;
 				}
 
 				// Save off the emitted ids.

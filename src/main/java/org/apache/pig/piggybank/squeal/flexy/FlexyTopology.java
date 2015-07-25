@@ -39,6 +39,7 @@ import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.tuple.Fields;
 
 public class FlexyTopology {
 	DefaultDirectedGraph<FStream, IndexedEdge<FStream>> _graph;

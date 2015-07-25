@@ -165,7 +165,7 @@ public class FStream implements Serializable {
 		case SHUFFLE:
 			// Pull a predecessor.
 			FStream pred = ((IndexedEdge<FStream>) parent.getIncomingEdgesOf(this).toArray()[0]).source;
-			return pred.getGroupingFields();
+			return pred.getOutputFields();
 		case PROJECTION:
 			return output_fields;
 		case SPOUT:

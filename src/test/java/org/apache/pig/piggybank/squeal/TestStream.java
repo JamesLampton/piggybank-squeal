@@ -141,6 +141,7 @@ public class TestStream extends SquealTestBase {
     			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
     				"'org.apache.pig.piggybank.squeal.TestSpout', '[\"wcTest\"]', '3') AS (sentence:bytearray);");
 
+    	pig.getPigContext().getProperties().setProperty("x_shuffleBefore", "true");
     	// STREAM is asynchronous is how it returns results, we don't have enough to make it work in this case.
 //    	pig.registerQuery("x = STREAM x THROUGH `tr -d '[:punct:]'` AS (sentence:chararray);");
 

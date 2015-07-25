@@ -54,10 +54,10 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	Throwable lastThrown = null;
 	Writable activeKey = null;
 	long last_flush = 0;
-	long flush_interval_ms = -1;
+	long flush_interval_ms = 0;
 	
 	long last_stats_dump = 0;
-	long cache_stats_interval_min = 1;
+	long cache_stats_interval_min = 0;
 	
 	public Stage0Executor(CombinerAggregator<T> agg) {
 		this.agg = agg;

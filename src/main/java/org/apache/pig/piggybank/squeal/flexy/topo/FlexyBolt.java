@@ -188,7 +188,9 @@ public class FlexyBolt extends BaseRichBolt {
 		
 		// Create the outputs.
 		for (Entry<FStream, String> v : idMap.entrySet()) {
-			declarer.declareStream(v.getValue(), v.getKey().getOutputFields());
+//			declarer.declareStream(v.getValue(), v.getKey().getOutputFields());
+			declarer.declareStream(v.getValue(), new Fields(
+					v.getKey().getOutputFields().get(0), "binnedValues"));
 		}
 	}
 

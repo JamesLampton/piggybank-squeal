@@ -37,8 +37,8 @@ public class TestFlexyModel extends SquealTestBase {
     	baos.reset();
     	pig.explain("count_gr", new PrintStream(baos));
     	
-    	System.err.print(new String(baos.toByteArray()));
-    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout-count_gr-count_gr parallel: 3.*"));
+//    	System.err.print(new String(baos.toByteArray()));
+    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout-x-count_gr parallel: 3.*"));
     	assertTrue(baos.toString().matches("(?si).*b1-count_gr parallel: 20.*"));
     	
 //    	explain("x");
@@ -48,19 +48,25 @@ public class TestFlexyModel extends SquealTestBase {
     	pig.registerQuery("x = LOAD '/dev/null' USING " +
     			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
     			"'org.apache.pig.piggybank.squeal.TestSpout', '[\"windowTest\"]', '3') AS (sentence:bytearray);");
+    	pig.registerQuery("count_gr = GROUP x BY RANDOM() PARALLEL 20;");
     	
     	pig.getPigContext().getProperties().setProperty("x_shuffleBefore", "true");
-    	pig.getPigContext().getProperties().setProperty("x_parallel", "20");
-    	
+    	pig.getPigContext().getProperties().setProperty("x_parallel", "15");
     	
     	// Ensure the shuffle worked and the parallelism is correct.
     	ByteArrayOutputStream baos = new ByteArrayOutputStream();
     	pig.explain("x", new PrintStream(baos));
-    	System.err.print(new String(baos.toByteArray()));
-    	
+//    	System.err.print(new String(baos.toByteArray()));
     	assertTrue(baos.toString().matches("(?si).*b0-TestSpout parallel: 3.*"));
-    	assertTrue(baos.toString().matches("(?si).*b1-x parallel: 20.*"));
+    	assertTrue(baos.toString().matches("(?si).*b1-x parallel: 15.*"));
     	
+    	// Now check things when a group by is thrown in.
+    	baos.reset();
+    	pig.explain("count_gr", new PrintStream(baos));
+    	System.err.print(new String(baos.toByteArray()));
+    	assertTrue(baos.toString().matches("(?si).*b0-TestSpout parallel: 3.*"));
+    	assertTrue(baos.toString().matches("(?si).*b1-x-count_gr parallel: 15.*"));
+    	assertTrue(baos.toString().matches("(?si).*b2-count_gr parallel: 20.*"));
 //    	explain("x");
     }
 }
