@@ -9,28 +9,34 @@ set pig.streaming.workers '4';
 %default piggybankpath '/opt/pig/contrib/piggybank/java/piggybank.jar'
 REGISTER $piggybankpath;
 
-%default rate '100';
+%default rate '600000';
 %default size '1024';
+%default numRunners '1';
+%default keySpace '2048'; -- 40.96 symbols per element.
 
-DEFINE sleep100 org.apache.pig.piggybank.evaluation.TestDelay('100.0');
-DEFINE sleep30 org.apache.pig.piggybank.evaluation.TestDelay('30.0');
+DEFINE sleepMap org.apache.pig.piggybank.evaluation.TestDelay('2.159');
+DEFINE sleepReduce org.apache.pig.piggybank.evaluation.TestDelay('0.042');
+DEFINE sleepState org.apache.pig.piggybank.evaluation.TestDelay('8.170');
+
+DEFINE genBag org.apache.pig.piggybank.evaluation.TestGenerateBag('42.671', '36.722');
 
 -- Run the performance spout.
 raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.TestRateSpout', '["$rate", "$size"]', '1');
 
 -- Add an intermediate step to cause a transfer of the raw stuff without entering the storage mechanism
 set raw_msgs_shuffleBefore 'true';
-set raw_msgs_parallel '4';
-raw_msgs = FOREACH raw_msgs GENERATE lastMinute, sleep100();
+set raw_msgs_parallel '$numRunners';
+raw_msgs = FOREACH raw_msgs GENERATE sleepMap(), FLATTEN(genBag()) AS key;
+raw_msgs = FOREACH raw_msgs GENERATE (key % 2048) AS key;
 
 --describe raw_msgs;
-gr = GROUP raw_msgs BY lastMinute;
-c = FOREACH gr GENERATE group, COUNT(raw_msgs) AS count, sleep30();
-c = FOREACH c GENERATE group, count;
+gr = GROUP raw_msgs BY key PARALLEL $numRunners;
+c = FOREACH gr GENERATE group, COUNT(raw_msgs) AS count;
+c = FOREACH c GENERATE *, sleepReduce(), sleepState();
 
 %default output 'perfoutput';
 rmf $output;
 
-explain c;
---STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput', '["false"]');
+--explain c;
+STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput', '["false"]');
 --STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');

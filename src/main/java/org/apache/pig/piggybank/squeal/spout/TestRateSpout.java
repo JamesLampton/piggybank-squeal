@@ -21,6 +21,9 @@ package org.apache.pig.piggybank.squeal.spout;
 import java.util.Map;
 import java.util.Random;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
@@ -37,6 +40,7 @@ public class TestRateSpout extends BaseRichSpout {
 	private int curSent;
 	private SpoutOutputCollector collector;
 	private Random r;
+	private static final Log log = LogFactory.getLog(TestRateSpout.class);
 
 	public TestRateSpout(String ratePerSecond, String sizeInBytes) {
 		rate = Integer.parseInt(ratePerSecond);
@@ -61,8 +65,10 @@ public class TestRateSpout extends BaseRichSpout {
 		long now = System.currentTimeMillis() / 60000;
 		
 		if (now != lastMinute) {
+			log.info("sent " + curSent + " during " + lastMinute);
 			lastMinute = now;
 			curSent = 0;
+
 		}
 		
 		// We've emitted all we should.

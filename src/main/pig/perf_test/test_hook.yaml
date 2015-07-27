@@ -1,4 +1,4 @@
-#topology.spout.max.batch.size: 50
+topology.spout.max.batch.size: 50
 #topology.spout.max.batch.size: 250
 
 #topology.worker.childopts: '-XX:+HeapDumpOnOutOfMemoryError'
@@ -10,4 +10,6 @@ flexy.stage1.cache.expiry_ms: 1
 flexy.stage1.cache.size: 10000
 
 # Disable the binner to measure the effect of message size vs tput
-flexy.binner.write.threshold: 100
+flexy.binner.write.threshold: 10
+
+
