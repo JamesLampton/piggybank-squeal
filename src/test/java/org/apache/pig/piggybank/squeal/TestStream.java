@@ -223,4 +223,43 @@ DEBUG: (6,2,1)
     	}
     }
    
+    @Test
+    public void testMinMax () throws Exception {
+//    	props.setProperty("pig.exec.nocombiner", "true");
+    	String output = "/tmp/testWCHist";
+    	
+    	fillQueue("wcTest");
+    	
+    	pig.registerQuery("x = LOAD '/dev/null' USING " +
+    			"org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper(" +
+    				"'org.apache.pig.piggybank.squeal.TestSpout', '[\"wcTest\"]', '3') AS (sentence:bytearray);");
+
+    	pig.getPigContext().getProperties().setProperty("x_shuffleBefore", "true");
+    	// STREAM is asynchronous is how it returns results, we don't have enough to make it work in this case.
+//    	pig.registerQuery("x = STREAM x THROUGH `tr -d '[:punct:]'` AS (sentence:chararray);");
+
+    	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
+    	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
+
+//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 1, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+    	pig.registerQuery("count_gr = GROUP x BY word;");
+    	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
+    	
+    	pig.registerQuery("all_gr = GROUP count BY 1;");
+    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.squeal.builtin.KMIN(count.wc) AS min_wc, MAX(count.wc)  AS max_wc;");
+    	
+    	explain("stats");
+//    	registerStore("stats", output, true);
+    	
+    	List<String> expected = new ArrayList<String>();
+    	expected.add("1\t6");
+    	
+    	Map<Tuple, Integer> leftover = drainAndMerge("stats", expected);
+    	if (leftover.size() != 0) {
+    		fail("Unexpected return value: " + leftover);
+    	}
+    	if (InMemTestQueue.getFailed("hist").size() > 0) {
+    		fail("Some messages failed");
+    	}
+    }
 }
