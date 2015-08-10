@@ -28,7 +28,7 @@ import org.apache.pig.piggybank.squeal.builtin.KMIN.MinIntermed;
  * @author JamesLampton
  *
  */
-public class IntMin extends MinMaxDoppleganger<org.apache.pig.builtin.IntMin> {
+public class IntMin extends MinMaxDoppleganger<org.apache.pig.builtin.IntMin, Integer> {
 
 //  funcList.add(new FuncSpec(IntMin.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGDECIMAL)));
 	static public class DIntMinInitInverse extends MinMaxDoppleganger.DopInitialInverse<IntMin> { }
@@ -37,9 +37,24 @@ public class IntMin extends MinMaxDoppleganger<org.apache.pig.builtin.IntMin> {
 			return BaseMinInitInverse.class.getName();
 		}
 	}
-	static public class DIntMinFinal extends MinMaxDoppleganger.DopFinal<IntMin> {}
+	static public class DIntMinFinal extends MinMaxDoppleganger.DopFinal<IntMin, Integer> {}
 
 	public IntMin() {
-		super(DIntMinInit.class.getName(), MinIntermed.class.getName(), DIntMinFinal.class.getName());
+		super();
+	}
+
+	@Override
+	public String getInitial() {
+		return DIntMinInit.class.getName();
+	}
+
+	@Override
+	public String getIntermed() {
+		return MinIntermed.class.getName();
+	}
+
+	@Override
+	public String getFinal() {
+		return DIntMinFinal.class.getName();
 	}
 }

@@ -18,6 +18,8 @@
 
 package org.apache.pig.piggybank.squeal.builtin;
 
+import java.math.BigInteger;
+
 import org.apache.pig.piggybank.squeal.builtin.KMIN.BaseMinInitInverse;
 import org.apache.pig.piggybank.squeal.builtin.KMIN.MinIntermed;
 
@@ -28,7 +30,7 @@ import org.apache.pig.piggybank.squeal.builtin.KMIN.MinIntermed;
  * @author JamesLampton
  *
  */
-public class BigIntegerMin extends MinMaxDoppleganger<org.apache.pig.builtin.BigIntegerMin> {
+public class BigIntegerMin extends MinMaxDoppleganger<org.apache.pig.builtin.BigIntegerMin, BigInteger> {
 
 //  funcList.add(new FuncSpec(BigIntegerMin.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGDECIMAL)));
 	static public class DBigIntegerMinInitInverse extends MinMaxDoppleganger.DopInitialInverse<BigIntegerMin> { }
@@ -37,9 +39,24 @@ public class BigIntegerMin extends MinMaxDoppleganger<org.apache.pig.builtin.Big
 			return BaseMinInitInverse.class.getName();
 		}
 	}
-	static public class DBigIntegerMinFinal extends MinMaxDoppleganger.DopFinal<BigIntegerMin> {}
+	static public class DBigIntegerMinFinal extends MinMaxDoppleganger.DopFinal<BigIntegerMin, BigInteger> {}
 
 	public BigIntegerMin() {
-		super(DBigIntegerMinInit.class.getName(), MinIntermed.class.getName(), DBigIntegerMinFinal.class.getName());
+		super();
+	}
+
+	@Override
+	public String getInitial() {
+		return DBigIntegerMinInit.class.getName();
+	}
+
+	@Override
+	public String getIntermed() {
+		return MinIntermed.class.getName();
+	}
+
+	@Override
+	public String getFinal() {
+		return DBigIntegerMinFinal.class.getName();
 	}
 }

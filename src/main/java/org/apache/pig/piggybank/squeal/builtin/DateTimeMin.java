@@ -20,6 +20,7 @@ package org.apache.pig.piggybank.squeal.builtin;
 
 import org.apache.pig.piggybank.squeal.builtin.KMIN.BaseMinInitInverse;
 import org.apache.pig.piggybank.squeal.builtin.KMIN.MinIntermed;
+import org.joda.time.DateTime;
 
 /**
  * Replace MIN with a function that will keep k (defaults to 10) intermediate values
@@ -28,7 +29,7 @@ import org.apache.pig.piggybank.squeal.builtin.KMIN.MinIntermed;
  * @author JamesLampton
  *
  */
-public class DateTimeMin extends MinMaxDoppleganger<org.apache.pig.builtin.DateTimeMin> {
+public class DateTimeMin extends MinMaxDoppleganger<org.apache.pig.builtin.DateTimeMin, DateTime> {
 
 //  funcList.add(new FuncSpec(DateTimeMin.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGDECIMAL)));
 	static public class DDateTimeMinInitInverse extends MinMaxDoppleganger.DopInitialInverse<DateTimeMin> { }
@@ -37,9 +38,23 @@ public class DateTimeMin extends MinMaxDoppleganger<org.apache.pig.builtin.DateT
 			return BaseMinInitInverse.class.getName();
 		}
 	}
-	static public class DDateTimeMinFinal extends MinMaxDoppleganger.DopFinal<DateTimeMin> {}
+	static public class DDateTimeMinFinal extends MinMaxDoppleganger.DopFinal<DateTimeMin, DateTime> {}
 
 	public DateTimeMin() {
-		super(DDateTimeMinInit.class.getName(), MinIntermed.class.getName(), DDateTimeMinFinal.class.getName());
+	}
+
+	@Override
+	public String getInitial() {
+		return DDateTimeMinInit.class.getName();
+	}
+
+	@Override
+	public String getIntermed() {
+		return MinIntermed.class.getName();
+	}
+
+	@Override
+	public String getFinal() {
+		return DDateTimeMinFinal.class.getName();
 	}
 }

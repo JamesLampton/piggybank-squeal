@@ -19,21 +19,9 @@ import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
 import org.apache.pig.piggybank.squeal.AlgebraicInverse;
 
-public class MinMaxDoppleganger<T> extends EvalFunc implements Algebraic, Accumulator {
-
-	private String initName;
-	private String intermedName;
-	private String finalName;
+public abstract class MinMaxDoppleganger<T,T2> extends EvalFunc<T2> implements Algebraic, Accumulator<T2> {
 
 	public MinMaxDoppleganger() {
-		this(null, null, null);
-	}
-	
-	protected MinMaxDoppleganger(String initName, String intermedName, String finalName) {
-		this.initName = initName;
-		this.intermedName = intermedName;
-		this.finalName = finalName;
-		
 		Class<T> typeOfT = (Class<T>)
                 ((ParameterizedType)getClass()
                 .getGenericSuperclass())
@@ -168,8 +156,8 @@ public class MinMaxDoppleganger<T> extends EvalFunc implements Algebraic, Accumu
 		}
 	}
 	
-	static class DopFinal<T> extends EvalFunc {
-		private EvalFunc wrapped;
+	static class DopFinal<T,T2> extends EvalFunc<T2> {
+		private EvalFunc<T2> wrapped;
 		
 		public DopFinal() {
 			Class<T> typeOfT = (Class<T>)
@@ -181,15 +169,15 @@ public class MinMaxDoppleganger<T> extends EvalFunc implements Algebraic, Accumu
 			try {
 				Class<?> klazz = ClassLoader.getSystemClassLoader().loadClass(
 						((Algebraic)typeOfT.newInstance()).getFinal());
-				wrapped = (EvalFunc<Tuple>) klazz.newInstance();
+				wrapped = (EvalFunc<T2>) klazz.newInstance();
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
 		}
 		
 		@Override
-		public Object exec(Tuple input) throws IOException {
-			return wrapped.exec(unroll(input));
+		public T2 exec(Tuple input) throws IOException {
+			return (T2) wrapped.exec(unroll(input));
 		}
 	}
 	
@@ -201,8 +189,8 @@ public class MinMaxDoppleganger<T> extends EvalFunc implements Algebraic, Accumu
 	}
 
 	@Override
-	public Object getValue() {
-		return ((Accumulator)wrapped).getValue();
+	public T2 getValue() {
+		return ((Accumulator<T2>)wrapped).getValue();
 	}
 
 	@Override
@@ -212,25 +200,19 @@ public class MinMaxDoppleganger<T> extends EvalFunc implements Algebraic, Accumu
 
 	// We need parameterization for this -- subclass above.
 	@Override
-	public String getInitial() {
-		return initName;
-	}
+	abstract public String getInitial();
 
 	// Subclass and set reversed.
 	@Override
-	public String getIntermed() {
-		return intermedName;
-	}
+	abstract public String getIntermed();
 
 	// We need parameterization for this.
 	@Override
-	public String getFinal() {
-		return finalName;
-	}
+	abstract public String getFinal();
 
 	@Override
-	public Object exec(Tuple input) throws IOException {
-		return ((EvalFunc)wrapped).exec(input);
+	public T2 exec(Tuple input) throws IOException {
+		return ((EvalFunc<T2>)wrapped).exec(input);
 	}
 	
 	@Override

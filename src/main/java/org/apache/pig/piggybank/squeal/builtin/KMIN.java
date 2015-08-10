@@ -33,7 +33,7 @@ import org.apache.pig.impl.logicalLayer.schema.Schema;
  * @author JamesLampton
  *
  */
-public class KMIN extends MinMaxDoppleganger<org.apache.pig.builtin.MIN> {
+public class KMIN extends MinMaxDoppleganger<org.apache.pig.builtin.MIN, Double> {
 	
 	static final int DEFAULTK = 10;
 	static final boolean REVERSE = false; 
@@ -53,9 +53,9 @@ public class KMIN extends MinMaxDoppleganger<org.apache.pig.builtin.MIN> {
 			return BaseMinInitInverse.class.getName();
 		}
 	}
-	static public class BaseMinFinal extends MinMaxDoppleganger.DopFinal<org.apache.pig.builtin.MIN> {}
+	static public class BaseMinFinal extends MinMaxDoppleganger.DopFinal<org.apache.pig.builtin.MIN, Double> {}
 	public KMIN() {
-		super(BaseMinInit.class.getName(), MinIntermed.class.getName(), BaseMinFinal.class.getName());
+		super();
 	}
 	
 	/* (non-Javadoc)
@@ -75,4 +75,19 @@ public class KMIN extends MinMaxDoppleganger<org.apache.pig.builtin.MIN> {
         funcList.add(new FuncSpec(BigIntegerMin.class.getName(), Schema.generateNestedSchema(DataType.BAG, DataType.BIGINTEGER)));
         return funcList;
     }
+
+	@Override
+	public String getInitial() {
+		return BaseMinInit.class.getName();
+	}
+
+	@Override
+	public String getIntermed() {
+		return MinIntermed.class.getName();
+	}
+
+	@Override
+	public String getFinal() {
+		return BaseMinFinal.class.getName();
+	}
 }
