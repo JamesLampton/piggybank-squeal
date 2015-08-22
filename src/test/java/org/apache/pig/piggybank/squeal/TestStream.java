@@ -246,10 +246,12 @@ DEBUG: (6,2,1)
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
     	
     	pig.registerQuery("all_gr = GROUP count BY 1;");
-    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.squeal.builtin.KMIN(count.wc) AS min_wc, MAX(count.wc)  AS max_wc;");
+//    	pig.registerQuery("stats = FOREACH all_gr GENERATE count.wc;");
+    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMIN(count.wc) AS min_wc, org.apache.pig.piggybank.evaluation.KMAX(count.wc)  AS max_wc;");
+//    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMAX(count.wc) AS max_wc;");
     	
-    	explain("stats");
-//    	registerStore("stats", output, true);
+//    	explain("stats");
+    	registerStore("stats", output, true);
     	
     	List<String> expected = new ArrayList<String>();
     	expected.add("1\t6");
