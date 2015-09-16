@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
@@ -39,7 +40,7 @@ public class TriBasicPersist implements CombinerAggregator<MapIdxWritable> {
 	static public List<NullableTuple> getTuples(MapIdxWritable state) {
 		List<NullableTuple> ret = new ArrayList<NullableTuple>();
 		
-		for (Entry<Writable, Writable> ent : state.entrySet()) {
+		for (Entry<Writable, Writable> ent : ((MapIdxWritable<TriBasicPersistState>)state).entrySet()) {
 			int c = ((IntWritable) ent.getValue()).get();
 			NullableTuple v = (NullableTuple) ent.getKey();
 			// If c is negative then we may have seen the inverse tuple for 
@@ -69,14 +70,14 @@ public class TriBasicPersist implements CombinerAggregator<MapIdxWritable> {
 		MapIdxWritable ret = zero();
 		
 		if (val1 != null) {
-			for (Entry<Writable, Writable> ent : val1.entrySet()) {
+			for (Entry<Writable, Writable> ent : ((MapIdxWritable<TriBasicPersistState>)val1).entrySet()) {
 				ret.put(ent.getKey(), new IntWritable(((IntWritable) ent.getValue()).get()));
 			}
 		}
 		
 		// We're going to merge into val1.
 		if (val2 != null) {
-			for (Entry<Writable, Writable> ent : val2.entrySet()) {
+			for (Entry<Writable, Writable> ent : ((MapIdxWritable<TriBasicPersistState>)val2).entrySet()) {
 				int c = ((IntWritable) ent.getValue()).get();
 				IntWritable iw = (IntWritable) ret.get(ent.getKey());
 				if (iw == null) {

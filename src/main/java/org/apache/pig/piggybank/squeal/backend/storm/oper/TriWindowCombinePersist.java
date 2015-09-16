@@ -182,7 +182,7 @@ public class TriWindowCombinePersist implements CombinerAggregator<MapIdxWritabl
 		
 		sb.append(this.getClass().getName()+"[");
 		
-		for (Entry<Writable, Writable> ent : state.entrySet()) {
+		for (Entry<Writable, Writable> ent : ((MapIdxWritable<WindowCombineState>)state).entrySet()) {
 			if (ent.getKey().getClass().isAssignableFrom(NullableTuple.class)) {
 				// It's a tuple -> count.
 				sb.append(ent.getKey().toString());
@@ -202,7 +202,7 @@ public class TriWindowCombinePersist implements CombinerAggregator<MapIdxWritabl
 	}
 	
 	void mergeValues(MapIdxWritable into, MapIdxWritable from) {
-		for (Entry<Writable, Writable> ent : from.entrySet()) {
+		for (Entry<Writable, Writable> ent : ((MapIdxWritable<WindowCombineState>)from).entrySet()) {
 			// See if this is a windowed element.
 			if (ent.getKey() instanceof IntWritable) {
 				// Pull the window.

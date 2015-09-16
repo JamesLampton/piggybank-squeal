@@ -171,7 +171,7 @@ public class InvCountEach extends AccumulatorEvalFunc<DataBag> implements Algebr
 		
 		@Override
 		public Tuple exec(Tuple input) throws IOException {
-			System.out.println("Init: " + input);
+//			System.out.println("Init: " + input);
 			
 			DataBag inputBag = (DataBag)input.get(0);
 			if (inputBag == null) throw new IllegalArgumentException("Expected a bag, got null");
@@ -247,7 +247,7 @@ public class InvCountEach extends AccumulatorEvalFunc<DataBag> implements Algebr
 		
 		@Override
 		public Tuple exec(Tuple input) throws IOException {
-			System.out.println("Intermed: " + input);
+//			System.out.println("Intermed: " + input);
 			
 			DataBag inputBag = (DataBag)input.get(0);
 			if (inputBag == null) throw new IllegalArgumentException("Expected a bag, got null");
@@ -258,7 +258,7 @@ public class InvCountEach extends AccumulatorEvalFunc<DataBag> implements Algebr
 			}
 			
 			Tuple ret = TupleFactory.getInstance().newTuple(unroll(_c, false));
-			System.out.println("Intermed ret: " + ret);
+//			System.out.println("Intermed ret: " + ret);
 			return ret;
 		}
 	}
@@ -278,7 +278,7 @@ public class InvCountEach extends AccumulatorEvalFunc<DataBag> implements Algebr
 
 		@Override
 		public DataBag exec(Tuple input) throws IOException {
-			System.out.println("Final: " + input);
+//			System.out.println("Final: " + input);
 			DataBag inputBag = (DataBag)input.get(0);
 			if (inputBag == null) throw new IllegalArgumentException("Expected a bag, got null");
 
