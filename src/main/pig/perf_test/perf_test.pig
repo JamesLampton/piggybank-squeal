@@ -11,8 +11,10 @@ REGISTER $piggybankpath;
 
 %default rate '600000';
 %default size '1024';
-%default numRunners '1';
-%default keySpace '2048'; -- 40.96 symbols per element.
+%default numRunners '32';
+--%default keySpace '2048'; -- 40.96 symbols per element.
+--%default keySpace '10240'; -- 40.96 symbols per element.
+%default keySpace '40960'; -- 40.96 symbols per element.
 
 DEFINE sleepMap org.apache.pig.piggybank.evaluation.TestDelay('2.159');
 DEFINE sleepReduce org.apache.pig.piggybank.evaluation.TestDelay('0.042');

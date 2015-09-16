@@ -41,10 +41,13 @@ public class TestRateSpout extends BaseRichSpout {
 	private SpoutOutputCollector collector;
 	private Random r;
 	private static final Log log = LogFactory.getLog(TestRateSpout.class);
-
+	int mult = 4;
+	int div = 60000;
+	
 	public TestRateSpout(String ratePerSecond, String sizeInBytes) {
-		rate = Integer.parseInt(ratePerSecond);
+		rate = Integer.parseInt(ratePerSecond)/mult;
 		size = Integer.parseInt(sizeInBytes);
+		div /= mult;
 	}
 	
 	@Override
@@ -62,10 +65,10 @@ public class TestRateSpout extends BaseRichSpout {
 
 	@Override
 	public void nextTuple() {
-		long now = System.currentTimeMillis() / 60000;
+		long now = System.currentTimeMillis() / div;
 		
 		if (now != lastMinute) {
-			log.info("sent " + curSent + " during " + lastMinute);
+			log.info("sent " + curSent + " of " + rate + " during " + lastMinute);
 			lastMinute = now;
 			curSent = 0;
 
