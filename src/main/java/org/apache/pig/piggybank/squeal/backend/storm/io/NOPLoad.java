@@ -38,7 +38,7 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.FileSpec;
 import org.apache.pig.impl.plan.OperatorKey;
-import org.apache.pig.piggybank.squeal.MonkeyPatch;
+import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
 
 public class NOPLoad extends POLoad {
 

@@ -55,20 +55,25 @@ import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapperUtils.LimitedOutstandingInvocationHandler;
 import org.apache.pig.piggybank.squeal.backend.storm.io.WritableKryoSerializer;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriCombinePersist;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriMapFunc;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriReduce;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriWindowCombinePersist;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
+import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyMasterSpout;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
+import org.apache.pig.piggybank.squeal.flexy.components.ISource;
 import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper;
+import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombinePersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.MapFunc;
+import org.apache.pig.piggybank.squeal.flexy.oper.Reduce;
+import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
+import org.jgrapht.graph.DefaultDirectedGraph;
 import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;
@@ -80,12 +85,16 @@ import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.SpoutSpec;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.generated.StreamInfo;
+import backtype.storm.topology.BoltDeclarer;
+import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 import storm.trident.operation.BaseFilter;
 import storm.trident.tuple.TridentTuple;
 import storm.trident.util.TridentUtils;
+import backtype.storm.topology.TopologyBuilder;
+
 
 public class FlexyMain extends Main {
 	
@@ -170,7 +179,7 @@ public class FlexyMain extends Main {
 					//				System.out.println("processMapSOP -- input: " + input + " " + input_sop + " " + po);
 					output = input.each(
 							input.getOutputFields(),
-							new TriMapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
+							new MapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
 							output_fields
 							).project(output_fields);
 					outputs.add(output);
@@ -199,7 +208,19 @@ public class FlexyMain extends Main {
 
 			return inputs;
 		}
-
+		
+		class SpoutSource implements ISource {
+			private IRichSpout s;
+			public SpoutSource(IRichSpout s) {
+				this.s = s;
+			}
+			
+			@Override
+			public IComponent getSpout() {
+				return s;
+			}
+		}
+		
 		public void visitSOp(StormOper sop) throws VisitorException {
 			List<FStream> outputs = new ArrayList<FStream>();
 			Fields output_fields = sop.getOutputFields();
@@ -214,7 +235,7 @@ public class FlexyMain extends Main {
 				}
 				
 				// Use a rich spout batch executor that fixes parts of Storm-368 and tracks metrics.
-				FStream output = topology.newStream(sop.getOperatorKey().toString(), spout_proxy);
+				FStream output = topology.newStream(sop.getOperatorKey().toString(), new SpoutSource(spout_proxy));
 				
 				log.debug("Setting output name: " + sop.getLoadFunc().getClass().getSimpleName());
 				output = output.name(sop.getLoadFunc().getClass().getSimpleName());
@@ -267,17 +288,17 @@ public class FlexyMain extends Main {
 				CombineWrapper.Factory agg_fact = null;				
 				if (sop.getType() == StormOper.OpType.BASIC_PERSIST) {
 					if (sop.getWindowOptions() == null) {
-						agg_fact = new CombineWrapper.Factory(new TriBasicPersist());
+						agg_fact = new CombineWrapper.Factory(new BasicPersist());
 					} else {
 						// We'll be windowing things.
-						agg_fact = new CombineWrapper.Factory(new TriWindowCombinePersist(sop.getWindowOptions()));
+						agg_fact = new CombineWrapper.Factory(new WindowCombinePersist(sop.getWindowOptions()));
 					}
 				} else {					
 					// We need to trim things from the plan re:PigCombiner.java
 					POPackage pack = (POPackage) sop.getPlan().getRoots().get(0);
 					sop.getPlan().remove(pack);
 
-					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
+					agg_fact = new CombineWrapper.Factory(new CombinePersist(pack, sop.getPlan(), sop.mapKeyType));
 				}
 				
 				Fields orig_input_fields = inputs.get(0).getOutputFields();
@@ -290,7 +311,7 @@ public class FlexyMain extends Main {
 					// We need to encode the key into a value (sans index) to group properly.
 					input = input.each(
 								new Fields(input.getOutputFields().get(0)),
-								new TriMapFunc.MakeKeyRawValue(),
+								new MapFunc.MakeKeyRawValue(),
 								group_key
 							);
 					
@@ -324,7 +345,7 @@ public class FlexyMain extends Main {
 				// Re-alias the raw as the key.
 				output = output.each(
 							group_key,
-							new TriMapFunc.Copy(),
+							new MapFunc.Copy(),
 							new Fields(orig_input_fields.get(0))
 						);
 
@@ -345,7 +366,7 @@ public class FlexyMain extends Main {
 					// Need to reduce
 					FStream output = input.each(
 							input.getOutputFields(), 
-							new TriReduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
+							new Reduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
 							output_fields
 							).project(output_fields);
 					//output.each(output.getOutputFields(), new Debug());
@@ -385,8 +406,71 @@ public class FlexyMain extends Main {
 		return topology;
 	}
 	
+	void _visitAndBuild(FlexyBolt b, Set<FlexyBolt> built_memo, TopologyBuilder builder) {
+		if (built_memo.contains(b)) {
+			return;
+		}
+		
+		// Add the bolt to the topology.
+		BoltDeclarer b_builder = builder.setBolt(b.getName(), b, b.getParallelism());
+		
+		// Link to the appropriate inputs.
+		if (b.getRoot().getType() == FStream.NodeType.SPOUT) {
+			// Link to the master.
+			b_builder.allGrouping("FlexyMaster", "start");
+			b_builder.allGrouping("FlexyMaster", "commit");
+		}
+		
+		Set<String> sourceBolts = new HashSet<String>();
+		
+		for (IndexedEdge<FStream> edge : ft.getBoltG().incomingEdgesOf(b)) {
+			// Ensure it exists.
+			FlexyBolt source_b = ft.getBoltMap().get(edge.source);
+			_visitAndBuild(source_b, built_memo, builder);
+			
+			// Now link it.
+			String source_name = source_b.getName();
+			sourceBolts.add(source_name);
+			String source_stream = source_b.getStreamName(edge.source);
+			
+			// Pull the schema of the input.
+			b.setInputSchema(edge.source.getOutputFields());
+
+//			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
+//			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
+			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
+				b_builder.shuffleGrouping(source_name, source_stream);
+			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
+				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
+			}
+		}
+		
+		for (String source_name : sourceBolts) {
+			// Subscribe to the coordination stream
+			b_builder.allGrouping(source_name, "coord");
+		}
+	}
+	
 	protected StormTopology getTopology() {
-		return ft.build();
+		// Crawl the graph and create execution pipelines to be run in the bolts.
+		ft.logicalToBoltGraph();
+
+		// Now, convert the bolt graph to a topology.		
+		TopologyBuilder builder = new TopologyBuilder();
+
+		// Create the coordinator spout.
+		builder.setSpout("FlexyMaster", new FlexyMasterSpout());
+
+		// Start from the leaves and walk to the spouts using DFS.
+		Set<FlexyBolt> built_memo = new HashSet<FlexyBolt>();
+		DefaultDirectedGraph<FlexyBolt, IndexedEdge<FStream>> boltG = ft.getBoltG();
+		for (FlexyBolt b : boltG.vertexSet()) {
+			if (boltG.outDegreeOf(b) == 0) {
+				_visitAndBuild(b, built_memo, builder);
+			}
+		}
+
+		return builder.createTopology();
 	}
 	
 	public void registerSerializer(Config conf) {

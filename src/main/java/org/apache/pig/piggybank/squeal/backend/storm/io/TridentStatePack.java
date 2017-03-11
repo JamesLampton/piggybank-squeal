@@ -25,9 +25,9 @@ import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriWindowCombinePersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper;
+import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.NullableTuple;
@@ -66,9 +66,9 @@ public class TridentStatePack extends POPackage {
 			s = (MapState) stateFactory.makeState(new HashMap(), null, 0, 1);
 			
 			if (windowOpts == null) {
-				agg = new CombineWrapper(new TriBasicPersist());
+				agg = new CombineWrapper(new BasicPersist());
 			} else {
-				agg = new CombineWrapper(new TriWindowCombinePersist(windowOpts));
+				agg = new CombineWrapper(new WindowCombinePersist(windowOpts));
 			}
 			tFactory = new TridentTupleView.FreshOutputFactory(new Fields("k", "v", "s"));
 			tf = TupleFactory.getInstance();

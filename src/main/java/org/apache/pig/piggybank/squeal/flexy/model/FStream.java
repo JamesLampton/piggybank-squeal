@@ -19,35 +19,31 @@
 package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.io.Serializable;
-import java.util.Set;
 
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
-
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.operation.Function;
-import storm.trident.state.StateFactory;
-import storm.trident.util.IndexedEdge;
-import storm.trident.util.TridentUtils;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.tuple.Fields;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.ISource;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
 public class FStream implements Serializable {
 	
 	private String name;
 	private transient FlexyTopology parent;
 	private NodeType nodeType;
-	private IRichSpout spout;
+	private ISource source;
 	private int parallelismHint;
-	private Fields output_fields;
-	private Fields input_fields;
-	private Function func;
+	private FFields output_fields;
+	private FFields input_fields;
+	private IFunction func;
 	private boolean isStage0Agg = false;
-	private Fields group_key;
-	private CombinerAggregator stage0Agg;
-	private CombinerAggregator stage1Agg;
-	private CombinerAggregator storeAgg;
-	private StateFactory sf;
-	private Fields func_project;
+	private FFields group_key;
+	private ICombinerAggregator stage0Agg;
+	private ICombinerAggregator stage1Agg;
+	private ICombinerAggregator storeAgg;
+	private IStateFactory sf;
+	private FFields func_project;
 	
 	public enum NodeType {
 		SPOUT, FUNCTION, PROJECTION, SHUFFLE, GROUPBY, MERGE
@@ -61,9 +57,9 @@ public class FStream implements Serializable {
 	}
 
 	public FStream(String name, FlexyTopology parent,
-			IRichSpout spout) {
+			ISource source) {
 		this(name, parent, NodeType.SPOUT);
-		this.setSpout(spout);
+		this.setSource(source);
 	}
 
 	public FStream name(String name) {
@@ -75,8 +71,8 @@ public class FStream implements Serializable {
 		this.parallelismHint = parallelismHint;
 	}
 
-	public FStream each(Fields input, Function func,
-			Fields output) {
+	public FStream each(FFields input, IFunction func,
+			FFields output) {
 		// Create a function node.
 		FStream n = new FStream(null, parent, NodeType.FUNCTION);
 		
@@ -89,7 +85,7 @@ public class FStream implements Serializable {
 		return n;
 	}
 
-	public FStream project(Fields output) {
+	public FStream project(FFields output) {
 		// Create a project node.
 		FStream n = new FStream(null, parent, NodeType.PROJECTION);
 
@@ -112,13 +108,13 @@ public class FStream implements Serializable {
 		return n;
 	}
 
-	public FStream groupBy(Fields group_key,
-			Fields input,
-			CombinerAggregator stage1Agg, 
-			CombinerAggregator stage2Agg, 
-			CombinerAggregator storeAgg, 
-			StateFactory sf, 
-			Fields output_fields) {
+	public FStream groupBy(FFields group_key,
+			FFields input,
+			ICombinerAggregator stage1Agg, 
+			ICombinerAggregator stage2Agg, 
+			ICombinerAggregator storeAgg, 
+			IStateFactory sf, 
+			FFields output_fields) {
 		
 		// Create a groupby node.
 		FStream n = new FStream(null, parent, NodeType.GROUPBY);
@@ -131,13 +127,13 @@ public class FStream implements Serializable {
 		return n;
 	}
 	
-	public Fields getAppendOutputFields() {
+	public FFields getAppendOutputFields() {
 		switch (nodeType) {
 		case FUNCTION:
 			return output_fields;
 		case GROUPBY:
 			if (nodeType == NodeType.GROUPBY && isStage0Agg) {
-				return new Fields("stage1_vl");
+				return new FFields("stage1_vl");
 			}
 			return output_fields;
 		case MERGE:
@@ -155,12 +151,12 @@ public class FStream implements Serializable {
 		}
 	}
 	
-	public Fields getOutputFields() {
+	public FFields getOutputFields() {
 		switch (nodeType) {
 		case FUNCTION:
-			return TridentUtils.fieldsConcat(input_fields, output_fields);
+			return FFields.fieldsConcat(input_fields, output_fields);
 		case GROUPBY:
-			return TridentUtils.fieldsConcat(group_key, getAppendOutputFields());
+			return FFields.fieldsConcat(group_key, getAppendOutputFields());
 		case MERGE:
 		case SHUFFLE:
 			// Pull a predecessor.
@@ -169,32 +165,32 @@ public class FStream implements Serializable {
 		case PROJECTION:
 			return output_fields;
 		case SPOUT:
-			return TridentUtils.getSingleOutputStreamFields(spout);
+			return FFields.getSingleOutputStreamFields(source);
 		default:
 			throw new RuntimeException("Unknown node type:" + nodeType);
 		}
 	}
 	
-	public Fields getInputFields() {
+	public FFields getInputFields() {
 		if (nodeType == NodeType.GROUPBY && !isStage0Agg) {
-			return new Fields("stage1_vl");
+			return new FFields("stage1_vl");
 		}
 		return input_fields;
 	}
 	
-	private void setSpout(IRichSpout spout) {
-		this.spout = spout;
+	private void setSource(ISource source) {
+		this.source = source;
 	}
 
-	private void setFunctionInformation(Fields input, Fields project, 
-			Function func, Fields output) {
+	private void setFunctionInformation(FFields input, FFields project, 
+			IFunction func, FFields output) {
 		input_fields = input;
 		func_project = project;
 		this.func = func;
 		output_fields = output;
 	}
 
-	private void setProjection(Fields input, Fields output) {
+	private void setProjection(FFields input, FFields output) {
 		this.input_fields = input;
 		this.output_fields = output;
 		
@@ -209,11 +205,11 @@ public class FStream implements Serializable {
 	}
 
 	private void setGroupBySpec(
-			Fields group_key, 
-			Fields input,
-			CombinerAggregator stage1Agg,
-			CombinerAggregator stage2Agg, CombinerAggregator storeAgg, 
-			StateFactory sf, Fields output_fields) {
+			FFields group_key, 
+			FFields input,
+			ICombinerAggregator stage1Agg,
+			ICombinerAggregator stage2Agg, ICombinerAggregator storeAgg, 
+			IStateFactory sf, FFields output_fields) {
 		this.group_key = group_key;
 		this.stage0Agg = stage1Agg;
 		this.stage1Agg = stage2Agg;
@@ -223,19 +219,19 @@ public class FStream implements Serializable {
 		this.output_fields = output_fields;
 	}
 
-	public CombinerAggregator getStage0Agg() {
+	public ICombinerAggregator getStage0Agg() {
 		return stage0Agg;
 	}
 	
-	public CombinerAggregator getStage1Agg() {
+	public ICombinerAggregator getStage1Agg() {
 		return stage1Agg;
 	}
 	
-	public CombinerAggregator getStorageAgg() {
+	public ICombinerAggregator getStorageAgg() {
 		return storeAgg;
 	}
 	
-	public StateFactory getStateFactory() {
+	public IStateFactory getStateFactory() {
 		return sf;
 	}
 	
@@ -262,7 +258,7 @@ public class FStream implements Serializable {
 			n.setProjection(input_fields, output_fields);
 			break;
 		case SPOUT:
-			n.setSpout(spout);
+			n.setSource(source);
 			break;
 		default:
 			throw new RuntimeException("Unknown node type:" + nodeType);
@@ -282,7 +278,7 @@ public class FStream implements Serializable {
 		return isStage0Agg;
 	}
 
-	public Fields getGroupingFields() {
+	public FFields getGroupingFields() {
 		return this.group_key;
 	}
 
@@ -298,12 +294,12 @@ public class FStream implements Serializable {
 		return this.getClass().getCanonicalName() + "@" + Integer.toHexString(hashCode()) + " " + nodeType + " : " + getName();
 	}
 
-	public Function getFunc() {
+	public IFunction getFunc() {
 		return func;
 	}
 
-	public IRichSpout getSpout() {
-		return spout;
+	public ISource getSource() {
+		return source;
 	}
 
 

@@ -27,7 +27,7 @@ import java.util.List;
 
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriCombinePersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombinePersist;
 import org.apache.pig.data.DataType;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
@@ -88,7 +88,7 @@ public class CombineTupleWritable implements Writable, IPigIdxState<CombineTuple
 
 	@Override
 	public List<NullableTuple> getTuples(Text which) {
-		return TriCombinePersist.getTuples(this);
+		return CombinePersist.getTuples(this);
 	}
 
 	@Override

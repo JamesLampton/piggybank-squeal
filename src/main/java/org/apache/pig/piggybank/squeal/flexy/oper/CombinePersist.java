@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -31,18 +31,18 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.io.NullableUnknownWritable;
 import org.apache.pig.impl.io.PigNullableWritable;
 
-import backtype.storm.tuple.Values;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.operation.TridentCollector;
-import storm.trident.tuple.TridentTuple;
-
-public class TriCombinePersist implements CombinerAggregator<CombineTupleWritable> {
+public class CombinePersist implements ICombinerAggregator<CombineTupleWritable> {
 
 	private PhysicalPlan combinePlan;
 	private POPackage pack;
@@ -52,7 +52,7 @@ public class TriCombinePersist implements CombinerAggregator<CombineTupleWritabl
 	private final static Tuple DUMMYTUPLE = null;
 	private final static PhysicalOperator[] DUMMYROOTARR = {};
 
-	public TriCombinePersist(POPackage pack, PhysicalPlan plan, byte mapKeyType) {
+	public CombinePersist(POPackage pack, PhysicalPlan plan, byte mapKeyType) {
 		combinePlan = plan;
 		this.pack = pack;
 		keyType = mapKeyType;
@@ -145,14 +145,14 @@ public class TriCombinePersist implements CombinerAggregator<CombineTupleWritabl
 	
 	
 	@Override
-	public CombineTupleWritable init(TridentTuple tri_tuple) {
+	public CombineTupleWritable init(IFlexyTuple tuple) {
 		
 //		System.out.println("TriCombinePersist.init(): " + tri_tuple);
 		
 		ArrayList<NullableTuple> tuplist = new ArrayList<NullableTuple>();
-		tuplist.add((NullableTuple) tri_tuple.get(1));
+		tuplist.add((NullableTuple) tuple.get(1));
 		
-		return runCombine((PigNullableWritable) tri_tuple.get(0), tuplist);
+		return runCombine((PigNullableWritable) tuple.get(0), tuplist);
 	}
 
 	@Override
@@ -194,11 +194,22 @@ public class TriCombinePersist implements CombinerAggregator<CombineTupleWritabl
 		return null;
 	}
 
-	public static class StateClean extends BaseFunction {
+	// FIXME: Is this useful?
+	public static class StateClean implements IFunction {
 		@Override
-		public void execute(TridentTuple tuple, TridentCollector collector) {
-			Values stuff = (Values) tuple.get(1);
-			collector.emit(new Values(stuff.get(1)));
+		public void execute(IFlexyTuple tuple, ICollector collector) {
+			FValues stuff = (FValues) tuple.get(1);
+			collector.emit(new FValues(stuff.get(1)));
+		}
+
+		@Override
+		public void prepare(IRunContext context) {
+			
+		}
+
+		@Override
+		public void cleanup() {
+			
 		}
 	}
 	

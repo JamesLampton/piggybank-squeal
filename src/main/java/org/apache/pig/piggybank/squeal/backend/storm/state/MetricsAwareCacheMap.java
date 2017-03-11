@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import org.apache.pig.piggybank.squeal.backend.storm.oper.StormBaseFunction;
+import org.apache.pig.piggybank.squeal.flexy.oper.FlexyBaseFunction;
 import org.apache.pig.piggybank.squeal.metrics.IMetricsTransport;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 

@@ -28,36 +28,27 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
+import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
 import org.apache.pig.piggybank.squeal.binner.Binner;
 import org.apache.pig.piggybank.squeal.binner.Binner.BinDecoder;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
+import org.apache.pig.piggybank.squeal.flexy.components.FlexyTupleFactory;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
-import org.apache.pig.piggybank.squeal.flexy.topo.FlexyBolt;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import com.esotericsoftware.kryo.io.Input;
 
-import backtype.storm.spout.ISpoutWaitStrategy;
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Tuple;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
-import storm.trident.tuple.TridentTupleView;
-import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
-import storm.trident.tuple.TridentTupleView.OperationOutputFactory;
-import storm.trident.tuple.TridentTupleView.ProjectionFactory;
-import storm.trident.util.IndexedEdge;
-
-public class PipelineExecutor implements TridentCollector {
+public class PipelineExecutor implements ICollector {
 	private FStream cur;
 	private List<PipelineExecutor> children;
 	//	private OutputCollector collector;  TODO: Remove this.
 	//	private TridentTuple.Factory output_tf;
-	private Map stormConf;
-	private TopologyContext context;
+	private IRunContext context;
 	private static final Log log = LogFactory.getLog(PipelineExecutor.class);
 
 	// Spout stuff
@@ -68,52 +59,48 @@ public class PipelineExecutor implements TridentCollector {
 
 	// Assume single active batch at this time.
 	private Map<Long, List<Object>> idsMap = new HashMap<Long, List<Object>>();
-	private OperationOutputFactory op_output_tf;
-	private ProjectionFactory proj_output_tf;
-	private FreshOutputFactory root_output_tf;
-	private TridentTuple parent;
+	private FlexyTupleFactory op_output_tf;
+	private FlexyTupleFactory proj_output_tf;
+	private FlexyTupleFactory root_output_tf;
+	private IFlexyTuple parent;
 	private String exposedName;
 	private Stage0Executor stage0Exec;
 	private Stage1Executor stage1Exec;
-	private FreshOutputFactory parent_root_tf;
+	private FlexyTupleFactory parent_root_tf;
 	private Binner binner;
 	private BinDecoder binDecoder;
-	private Tuple anchor;
+	private Object anchor;
 	private int emptyStreak = 0;
-	private ISpoutWaitStrategy waitStrategy = null;
 
 	private PipelineExecutor(FStream cur, List<PipelineExecutor> children) {
 		this.cur = cur;
 		this.children = children;
 	}
 
-	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector,
-			FlexyBolt flexyBolt) {
-		prepare(stormConf, context, collector, null, flexyBolt);
+	public void prepare(IRunContext context, IOutputCollector collector) {
+		prepare(context, collector, null);
 	}
 
-	private void prepare(Map stormConf, TopologyContext context, 
-			OutputCollector collector, TridentTuple.Factory parent_tf,
-			FlexyBolt flexyBolt) {			
+	private void prepare(IRunContext context, 
+			IOutputCollector collector, FlexyTupleFactory parent_tf) {			
 
-		this.stormConf = stormConf;
 		this.context = context;
 
-		exposedName = flexyBolt.getExposedName(cur);
+		exposedName = context.getExposedName(cur);
 		if (exposedName != null) {
 			// Initialize and prepare a Binner.
 			binner = new Binner();
-			binner.prepare(stormConf, context, collector, exposedName);
+			binner.prepare(context, collector, exposedName);
 		}
 
-		binDecoder = new Binner.BinDecoder(stormConf);
+		binDecoder = new Binner.BinDecoder(context);
 
 		// Stash this for use later.  TODO: Remove this.
 		//		this.collector = collector;
 
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
 //			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
-			parent_tf = parent_root_tf = new TridentTupleView.FreshOutputFactory(flexyBolt.getInputSchema());
+			parent_tf = parent_root_tf = FlexyTupleFactory.newFreshOutputFactory(context.getInputSchema());
 		}
 
 		TridentOperationContext triContext = new TridentOperationContext(context, parent_tf);
@@ -148,28 +135,15 @@ public class PipelineExecutor implements TridentCollector {
 			output_tf = proj_output_tf;
 			break;
 		case SPOUT:
-			Number batchSize = (Number) stormConf.get(MAX_BATCH_SIZE_CONF);
+			Number batchSize = (Number) context.get(MAX_BATCH_SIZE_CONF);
 			if(batchSize==null) batchSize = DEFAULT_MAX_BATCH_SIZE;
 			maxBatchSize = batchSize.intValue();
 
 			// Prepare the spout
-			cur.getSpout().open(stormConf, context, new SpoutOutputCollector(_collector));
+			cur.getSource().open(context, new SpoutOutputCollector(_collector));
 
-			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getAppendOutputFields());
+			root_output_tf = FlexyTupleFactory.newFreshOutputFactory(cur.getAppendOutputFields());
 			output_tf = root_output_tf;
-			
-			// Pull the spout wait strategy and initialize it.
-			if (stormConf.get("topology.spout.wait.strategy") != null) {
-				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
-				try {
-					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
-					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
-					waitStrategy.prepare(stormConf);
-				} catch (Exception e) {
-					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
-				}
-
-			}
 			
 			break;
 		case SHUFFLE:
@@ -181,11 +155,11 @@ public class PipelineExecutor implements TridentCollector {
 		}
 
 		for (PipelineExecutor child : children) {
-			child.prepare(stormConf, context, collector, output_tf, flexyBolt);
+			child.prepare(context, collector, output_tf);
 		}
 	}
 
-	public boolean commit(Tuple input) {
+	public boolean commit(long txid) {
 		boolean ret = true;
 
 		switch (cur.getType()) {
@@ -197,7 +171,7 @@ public class PipelineExecutor implements TridentCollector {
 			break;
 		case GROUPBY:
 			if (!cur.getIsStage0Agg()) {
-				stage1Exec.commit(input.getLong(0));
+				stage1Exec.commit(txid);
 			}
 			break;
 		default:
@@ -206,14 +180,14 @@ public class PipelineExecutor implements TridentCollector {
 
 		// Call commit on children.
 		for (PipelineExecutor child : children) {
-			child.commit(input);
+			child.commit(txid);
 		}
 
 		return ret;
 	}
 
-	public void flush(Tuple input) {	
-		anchor = input;
+	public void flush(Object inputAnchor) {	
+		anchor = inputAnchor;
 
 		switch (cur.getType()) {
 		case FUNCTION:
@@ -236,18 +210,18 @@ public class PipelineExecutor implements TridentCollector {
 
 		// Flush any outstanding messages.
 		if (exposedName != null) {
-			binner.flush(input);
+			binner.flush(inputAnchor);
 		}
 
 		// Call flush on children.
 		for (PipelineExecutor child : children) {
-			child.flush(input);
+			child.flush(inputAnchor);
 		}
 
 		anchor = null;
 	}
 
-	private void execute(TridentTuple tup, Tuple anchor) {
+	private void execute(IFlexyTuple tup, Object anchor) {
 		//		log.info("execute: " + cur + " " + tup);
 
 		this.anchor = anchor;
@@ -323,9 +297,9 @@ public class PipelineExecutor implements TridentCollector {
 					}
 					for (Object msgId : idsMap.remove(last_txid)) {
 						if (failed) {
-							cur.getSpout().fail(msgId);
+							cur.getSource().fail(msgId);
 						} else {
-							cur.getSpout().ack(msgId);
+							cur.getSource().ack(msgId);
 						}
 					}
 				}
@@ -352,9 +326,7 @@ public class PipelineExecutor implements TridentCollector {
 				if (_collector.numEmitted == 0) {
 					emptyStreak ++;
 					// Wait if necessary.
-					if (waitStrategy != null) {
-						waitStrategy.emptyEmit(emptyStreak);
-					} 
+					context.runWaitStrategy(emptyStreak);
 				} else {
 					emptyStreak = 0;
 				}
@@ -365,7 +337,7 @@ public class PipelineExecutor implements TridentCollector {
 				if (spoutException != null) {
 					// Fail the ids.
 					for (Object msgId : idsMap.remove(txid)) {
-						cur.getSpout().fail(msgId);
+						cur.getSource().fail(msgId);
 					}
 					throw new RuntimeException(spoutException);
 				}
@@ -385,11 +357,11 @@ public class PipelineExecutor implements TridentCollector {
 	@Override
 	public void emit(List<Object> values) {
 		//		log.info("Emit: " + cur + " --> " + values + " --> " + exposedName);
-		TridentTuple tup = null;
+		IFlexyTuple tup = null;
 		// Use the appropriate output factory to create the next tuple.
 		switch (cur.getType()) {
 		case FUNCTION:
-			tup = op_output_tf.create((TridentTupleView) parent, values);
+			tup = op_output_tf.create(parent, values);
 			break;
 		case GROUPBY:
 			tup = root_output_tf.create(values);

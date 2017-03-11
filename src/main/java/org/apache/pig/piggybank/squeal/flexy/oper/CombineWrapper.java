@@ -16,45 +16,43 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
+
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IPigIdxState;
 import org.apache.pig.piggybank.squeal.backend.storm.state.MapIdxWritable;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
 
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.tuple.TridentTuple;
-
-public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
-	private CombinerAggregator<Writable> agg;
+public class CombineWrapper implements ICombinerAggregator<MapIdxWritable> {
+	private ICombinerAggregator<Writable> agg;
 	private boolean trackLast;
 	private boolean identityInit;
 	static public final Text CUR = new Text("cur");
 	static public final Text LAST = new Text("last");
 	
-	public CombineWrapper(CombinerAggregator agg, boolean trackLast, boolean identityInit) {
-		this.agg = (CombinerAggregator<Writable>) agg;
+	public CombineWrapper(ICombinerAggregator agg, boolean trackLast, boolean identityInit) {
+		this.agg = (ICombinerAggregator<Writable>) agg;
 		this.trackLast = trackLast;
 		this.identityInit = identityInit;
 	}
 
-	public CombineWrapper(CombinerAggregator agg, boolean trackLast) {
+	public CombineWrapper(ICombinerAggregator agg, boolean trackLast) {
 		this(agg, trackLast, false);
 	}
 	
-	public CombineWrapper(CombinerAggregator agg) {
+	public CombineWrapper(ICombinerAggregator agg) {
 		this(agg, false);
 	}
 
 	@Override
-	public MapIdxWritable init(TridentTuple tuple) {
+	public MapIdxWritable init(IFlexyTuple tuple) {
 //		System.out.println("  init: " + tuple + " identityInit: " + identityInit + " agg: " + agg);
 		if (identityInit) {
 			return (MapIdxWritable) tuple.get(0);
@@ -185,9 +183,9 @@ public class CombineWrapper implements CombinerAggregator<MapIdxWritable> {
 	}
 	
 	public static class Factory {
-		private CombinerAggregator agg;
+		private ICombinerAggregator agg;
 
-		public Factory(CombinerAggregator agg) {
+		public Factory(ICombinerAggregator agg) {
 			this.agg = agg;
 		}
 		

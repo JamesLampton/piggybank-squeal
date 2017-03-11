@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -33,22 +33,21 @@ import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IPigIdxState;
 import org.apache.pig.piggybank.squeal.backend.storm.state.MapIdxWritable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.WindowBundle;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
 import org.mortbay.util.ajax.JSON;
 
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.tuple.TridentTuple;
-
-public class TriWindowCombinePersist implements CombinerAggregator<MapIdxWritable> {
+public class WindowCombinePersist implements ICombinerAggregator<MapIdxWritable> {
 	
 	Map<Integer, Long> windowSettings = new HashMap<Integer, Long>();
 	
-	public TriWindowCombinePersist() {
+	public WindowCombinePersist() {
 		this(null);
 	}
 	
-	public TriWindowCombinePersist(String windowOptions) {
+	public WindowCombinePersist(String windowOptions) {
 		// Parse the options if they're not null.
 		if (windowOptions != null) {
 			Map<String, Long> opts = (Map<String, Long>) JSON.parse(windowOptions);
@@ -168,7 +167,7 @@ public class TriWindowCombinePersist implements CombinerAggregator<MapIdxWritabl
 	}
 	
 	@Override
-	public MapIdxWritable init(TridentTuple tuple) {
+	public MapIdxWritable init(IFlexyTuple tuple) {
 		MapIdxWritable ret = zero();
 		NullableTuple values = (NullableTuple) tuple.get(1);
 		
@@ -360,7 +359,7 @@ public class TriWindowCombinePersist implements CombinerAggregator<MapIdxWritabl
 		@Override
 		public List<Pair<List<NullableTuple>, List<NullableTuple>>> getTupleBatches(
 				WindowCombineState lastState) {
-			return TriWindowCombinePersist.getTupleBatches(this, lastState);
+			return WindowCombinePersist.getTupleBatches(this, lastState);
 		}
 	}
 	

@@ -16,24 +16,28 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.flexy.topo;
+package org.apache.pig.piggybank.squeal.backend.storm.topo;
 
 import java.util.ArrayDeque;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
+import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
+import org.apache.pig.piggybank.squeal.flexy.executors.ISpoutWaitStrategy;
 import org.apache.pig.piggybank.squeal.flexy.executors.PipelineExecutor;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
-import storm.trident.util.ErrorEdgeFactory;
-import storm.trident.util.IndexedEdge;
-import storm.trident.util.TridentUtils;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
 import backtype.storm.task.OutputCollector;
@@ -63,19 +67,88 @@ public class FlexyBolt extends BaseRichBolt {
 	Map<Integer, Long> _observe_count = new HashMap<Integer, Long>();
 	Map<Integer, Long> _c0_queue_acc = new HashMap<Integer, Long>();
 	Map<Integer, Long> _c0_c1_diff_acc = new HashMap<Integer, Long>();
+	private BoltRunContext runContext;
 
 	public FlexyBolt(int bolt_id, FStream root) {
 		this.bolt_id = bolt_id;
 		this.root = root;
-		G = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new ErrorEdgeFactory());
+		G = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new FlexyTopology.ErrorEdgeFactory());
 		G.addVertex(root);
+	}
+	
+	class BoltRunContext implements IRunContext {
+		
+		public BoltRunContext() {
+			// Pull the spout wait strategy and initialize it.
+			if (context.get("topology.spout.wait.strategy") != null) {
+				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
+				try {
+					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
+					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
+					waitStrategy.prepare(stormConf);
+				} catch (Exception e) {
+					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
+				}
+
+			}
+		}
+
+		@Override
+		public int getThisTaskId() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public String getThisComponentId() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public int getThisTaskIndex() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public String getStormId() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public int getPartitionIndex() {
+			// TODO Auto-generated method stub
+			return 0;
+		}
+
+		@Override
+		public Object get(String cacheSizeConf) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+		
+	}
+	
+	class BoltCollector implements IOutputCollector {
+
+		private OutputCollector collector;
+
+		public BoltCollector(OutputCollector collector) {
+			this.collector = collector;
+		}
+		
 	}
 
 	@Override
 	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 		// Create the execution pipeline.
 		pipeline = PipelineExecutor.build(root, G);
-		pipeline.prepare(stormConf, context, collector, this);
+		
+		this.runContext = new BoltRunContext();
+		
+		pipeline.prepare(runContext, new BoltCollector(collector));
 		
 		this.collector = collector;
 		

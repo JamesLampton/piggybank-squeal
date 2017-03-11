@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,26 +24,23 @@ import java.util.List;
 import org.apache.pig.data.DataByteArray;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.NullableTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
-import backtype.storm.tuple.Values;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
-
-public class TriMakePigTuples extends BaseFunction {
+public class MakePigTuples implements IFunction {
 	
 	Integer POS = new Integer(1);
 	Integer NEG = new Integer(-1);
 	private TupleFactory tf;
 	
-	@Override
-	public void prepare(java.util.Map conf, TridentOperationContext context) {
+	public void prepare(IRunContext context) {
 		 tf = TupleFactory.getInstance();
 	}
-		
-	@Override
-	public void execute(TridentTuple tuple, TridentCollector collector) {
+	
+	public void execute(IFlexyTuple tuple, ICollector collector) {
 		List<Object> ret_arr = new ArrayList<Object>(tuple.size());
 		
 		for (Object o : tuple.getValues()) {
@@ -54,7 +51,12 @@ public class TriMakePigTuples extends BaseFunction {
 			}
 		}
 		
-		collector.emit(new Values(null, new NullableTuple(tf.newTupleNoCopy(ret_arr)), POS));
+		collector.emit(new FValues(null, new NullableTuple(tf.newTupleNoCopy(ret_arr)), POS));
+	}
+
+	@Override
+	public void cleanup() {
+		
 	}
 
 }

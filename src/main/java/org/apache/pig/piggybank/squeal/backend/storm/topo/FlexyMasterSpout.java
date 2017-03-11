@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.flexy.topo;
+package org.apache.pig.piggybank.squeal.backend.storm.topo;
 
 import java.util.Map;
 import java.util.Random;

@@ -48,8 +48,8 @@ import org.apache.hadoop.io.Writable;
 import org.apache.hadoop.util.ReflectionUtils;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist.TriBasicPersistState;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriWindowCombinePersist.WindowCombineState;
+import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist.TriBasicPersistState;
+import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist.WindowCombineState;
 
 public abstract class MapIdxWritable<T> implements Map<Writable, Writable>, IPigIdxState<T>, Writable {
 

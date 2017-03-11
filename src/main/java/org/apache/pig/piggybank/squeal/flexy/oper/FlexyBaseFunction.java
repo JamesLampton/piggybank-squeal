@@ -16,33 +16,29 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.net.InetAddress;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PhysicalOperator;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PigLogger;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.PigProgressable;
-import org.apache.pig.piggybank.squeal.MonkeyPatch;
-import org.apache.pig.piggybank.squeal.backend.storm.Main;
+import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.metrics.IMetricsTransport;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.apache.pig.data.SchemaTupleBackend;
 import org.apache.pig.impl.PigContext;
 
-import backtype.storm.task.TopologyContext;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-
-public abstract class StormBaseFunction extends BaseFunction {
+public abstract class FlexyBaseFunction implements IFunction {
 
 	protected PigContext pc;
 	protected IMetricsTransport mt;
@@ -53,13 +49,18 @@ public abstract class StormBaseFunction extends BaseFunction {
 	private String stormId;
 	private String hostname;
 	
-	public StormBaseFunction(PigContext pc) {
+	public FlexyBaseFunction() {
+		
+	}
+	
+	public FlexyBaseFunction(PigContext pc) {
 		this.pc = pc;
 	}
 	
+	// FIXME: Make a default?
 	public abstract String getMetricsAnnotation();
 	
-	private static final Log log = LogFactory.getLog(StormBaseFunction.class);
+	private static final Log log = LogFactory.getLog(FlexyBaseFunction.class);
 
 	class DummyProgress implements PigProgressable {
 		@Override
@@ -80,9 +81,7 @@ public abstract class StormBaseFunction extends BaseFunction {
 		}
 	}
 	
-	public void	prepare(Map conf, TridentOperationContext context) {
-		super.prepare(conf, context);
-		
+	public void	prepare(IRunContext context) {		
 		try {
 			MonkeyPatch.PigContextRefreshEngine(pc);
 			pc.connect();
@@ -102,11 +101,10 @@ public abstract class StormBaseFunction extends BaseFunction {
 		
 		// Pull the component name and any other information from the conf.
 		try {
-			TopologyContext topo_context = MonkeyPatch.getTopologyContext(context);
-			taskId = topo_context.getThisTaskId();
-			taskIdx = topo_context.getThisTaskIndex();
-			compId = topo_context.getThisComponentId();
-			stormId = (String) conf.get("storm.id");
+			taskId = context.getThisTaskId();
+			taskIdx = context.getThisTaskIndex();
+			compId = context.getThisComponentId();
+			stormId = context.getStormId();
 			hostname = InetAddress.getLocalHost().getHostName();
 		} catch (Exception e) {
 			// Leave things as unknown on error.
@@ -146,16 +144,16 @@ public abstract class StormBaseFunction extends BaseFunction {
 		mt.send(sb.toString().getBytes());
 	}
 	
-	class MetricsCollector implements TridentCollector {
+	class MetricsCollector implements ICollector {
 
-		private TridentCollector wrapped;
+		private ICollector wrapped;
 		private long start_ts;
 		int pos_count = 0;
 		int neg_count = 0;
 		int unkn_count = 0;
 		private Object[] appends;
 
-		public MetricsCollector(TridentCollector collector, Object[] appends) {
+		public MetricsCollector(ICollector collector, Object[] appends) {
 			start_ts = System.nanoTime();
 			this.appends = appends;
 			wrapped = collector;
@@ -194,7 +192,7 @@ public abstract class StormBaseFunction extends BaseFunction {
 		}
 	}
 	
-	protected TridentCollector doMetricsStart(TridentCollector collector, Object... appends) {
+	protected ICollector doMetricsStart(ICollector collector, Object... appends) {
 		if (mt == null || !mt.shouldSample()) {
 			return collector;
 		}
@@ -205,9 +203,15 @@ public abstract class StormBaseFunction extends BaseFunction {
 		return collector;
 	}
 	
-	protected void doMetricsStop(TridentCollector collector, Object... appends2) {
+	protected void doMetricsStop(ICollector collector, Object... appends2) {
 		if (collector instanceof MetricsCollector) {
 			((MetricsCollector)collector).collectMetrics(appends2);
 		}
+	}
+
+	@Override
+	public void cleanup() {
+		// TODO Auto-generated method stub
+		
 	}
 }

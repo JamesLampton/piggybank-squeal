@@ -28,6 +28,9 @@ import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -111,8 +114,8 @@ public class Binner {
 		
 	}
 	
-	public void prepare(Map stormConf, TopologyContext context,
-			OutputCollector collector, String exposedName) {
+	public void prepare(IRunContext context,
+			IOutputCollector collector, String exposedName) {
 		this.collector = collector;
 		this.exposedName = exposedName;
 		taskId = context.getThisTaskId();
@@ -133,7 +136,7 @@ public class Binner {
 		if (conf_int != null) _write_thresh = conf_int.intValue(); 
 	}
 
-	public void emit(TridentTuple tup, Tuple anchor) throws IOException {
+	public void emit(IFlexyTuple tup, Object anchor) throws IOException {
 		for (Grouper gr : groupings) {
 			// Calculate the destinations.
 			for (Integer dest : gr.chooseTasks(taskId, tup)) {				
@@ -161,10 +164,10 @@ public class Binner {
 		collector.emit(exposedName, anchor, new Values(curOut.aKey, curOut.out.toBytes()));
 	}
 	
-	public void flush(Tuple input) {
+	public void flush(Object inputAnchor) {
 		// Flush all the bins.
 		for (Entry<Integer, OutCollector> ent : bins.entrySet()) {
-			_flush(ent.getValue(), input);
+			_flush(ent.getValue(), inputAnchor);
 		}
 		bins.clear();
 	}
@@ -172,8 +175,9 @@ public class Binner {
 	public static class BinDecoder {
 		private KryoValuesDeserializer _deser;
 
-		public BinDecoder(Map stormConf) {
-			_deser = new KryoValuesDeserializer(stormConf);
+		public BinDecoder(IRunContext context) {
+			
+			_deser = new KryoValuesDeserializer(context.getStormConf());
 		}
 		
 		public List<Object> decodeList(Input in) {

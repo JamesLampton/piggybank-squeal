@@ -18,6 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy;
 
+import java.io.Serializable;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,19 +28,17 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
+import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
+import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyMasterSpout;
+import org.apache.pig.piggybank.squeal.flexy.components.ISource;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
-import org.apache.pig.piggybank.squeal.flexy.topo.FlexyBolt;
-import org.apache.pig.piggybank.squeal.flexy.topo.FlexyMasterSpout;
+import org.jgrapht.EdgeFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
-import storm.trident.util.ErrorEdgeFactory;
-import storm.trident.util.IndexedEdge;
-import backtype.storm.generated.StormTopology;
-import backtype.storm.topology.BoltDeclarer;
-import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.TopologyBuilder;
-import backtype.storm.tuple.Fields;
+//import backtype.storm.generated.StormTopology;
+
+//import backtype.storm.topology.IRichSpout;
 
 public class FlexyTopology {
 	DefaultDirectedGraph<FStream, IndexedEdge<FStream>> _graph;
@@ -47,6 +46,44 @@ public class FlexyTopology {
 	private HashMap<FStream, FlexyBolt> boltMap;
 	private DefaultDirectedGraph<FlexyBolt, IndexedEdge<FStream>> boltG;
 	private static final Log log = LogFactory.getLog(FlexyTopology.class);
+	
+	// from storm.trident.util
+	static public class ErrorEdgeFactory implements EdgeFactory, Serializable {
+	    @Override
+	    public Object createEdge(Object v, Object v1) {
+	        throw new RuntimeException("Edges should be made explicitly");
+	    }        
+	}
+	
+	// from storm.trident.util
+	static public class IndexedEdge<T> implements Comparable, Serializable {
+	    public T source;
+	    public T target;
+	    public int index;
+	    
+	    public IndexedEdge(T source, T target, int index) {
+	        this.source = source;
+	        this.target = target;
+	        this.index = index;
+	    }
+
+	    @Override
+	    public int hashCode() {
+	        return 13* source.hashCode() + 7 * target.hashCode() + index;
+	    }
+
+	    @Override
+	    public boolean equals(Object o) {
+	        IndexedEdge other = (IndexedEdge) o;
+	        return source.equals(other.source) && target.equals(other.target) && index == other.index;
+	    }
+
+	    @Override
+	    public int compareTo(Object t) {
+	        IndexedEdge other = (IndexedEdge) t;
+	        return index - other.index;
+	    }
+	}
 	
 	public FlexyTopology() {
 		_graph = new DefaultDirectedGraph<FStream, IndexedEdge<FStream>>(new ErrorEdgeFactory());
@@ -122,7 +159,7 @@ public class FlexyTopology {
 		}
 	}
 	
-	private void logicalToBoltGraph() {
+	public void logicalToBoltGraph() {
 		// Convert the logical graph to a bolt graph.
 		DefaultDirectedGraph<FStream, IndexedEdge<FStream>> G = (DefaultDirectedGraph<FStream, IndexedEdge<FStream>>) _graph.clone();
 		int bolt_counter = 0;
@@ -221,72 +258,6 @@ public class FlexyTopology {
 		} 
 	}
 	
-	void _visitAndBuild(FlexyBolt b, Set<FlexyBolt> built_memo, TopologyBuilder builder) {
-		if (built_memo.contains(b)) {
-			return;
-		}
-		
-		// Add the bolt to the topology.
-		BoltDeclarer b_builder = builder.setBolt(b.getName(), b, b.getParallelism());
-		
-		// Link to the appropriate inputs.
-		if (b.getRoot().getType() == FStream.NodeType.SPOUT) {
-			// Link to the master.
-			b_builder.allGrouping("FlexyMaster", "start");
-			b_builder.allGrouping("FlexyMaster", "commit");
-		}
-		
-		Set<String> sourceBolts = new HashSet<String>();
-		
-		for (IndexedEdge<FStream> edge : boltG.incomingEdgesOf(b)) {
-			// Ensure it exists.
-			FlexyBolt source_b = boltMap.get(edge.source);
-			_visitAndBuild(source_b, built_memo, builder);
-			
-			// Now link it.
-			String source_name = source_b.getName();
-			sourceBolts.add(source_name);
-			String source_stream = source_b.getStreamName(edge.source);
-			
-			// Pull the schema of the input.
-			b.setInputSchema(edge.source.getOutputFields());
-
-//			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
-//			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
-			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
-				b_builder.shuffleGrouping(source_name, source_stream);
-			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
-				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
-			}
-		}
-		
-		for (String source_name : sourceBolts) {
-			// Subscribe to the coordination stream
-			b_builder.allGrouping(source_name, "coord");
-		}
-	}
-
-	public StormTopology build() {
-		// Crawl the graph and create execution pipelines to be run in the bolts.
-		logicalToBoltGraph();
-		
-		// Now, convert the bolt graph to a topology.		
-		TopologyBuilder builder = new TopologyBuilder();
-		
-		// Create the coordinator spout.
-		builder.setSpout("FlexyMaster", new FlexyMasterSpout());
-		
-		// Start from the leaves and walk to the spouts using DFS.
-		Set<FlexyBolt> built_memo = new HashSet<FlexyBolt>();
-		for (FlexyBolt b : boltG.vertexSet()) {
-			if (boltG.outDegreeOf(b) == 0) {
-				_visitAndBuild(b, built_memo, builder);
-			}
-		}
-		
-		return builder.createTopology();
-	}
-	
 	public FStream merge(List<FStream> intermed) {
 		// Create a new node.
 		FStream n = new FStream(null, this, FStream.NodeType.MERGE);
@@ -300,10 +271,10 @@ public class FlexyTopology {
 		return n;
 	}
 
-	public FStream newStream(String name, IRichSpout spout) {
+	public FStream newStream(String name, ISource source) {
 		
 		// Create a new node.
-		FStream n = new FStream(name, this, spout);
+		FStream n = new FStream(name, this, source);
 		
 		_graph.addVertex(n);
 		
@@ -327,5 +298,13 @@ public class FlexyTopology {
 	
 	public Set<IndexedEdge<FStream>> getIncomingEdgesOf(FStream n) {
 		return _graph.incomingEdgesOf(n);
+	}
+
+	public DefaultDirectedGraph<FlexyBolt, IndexedEdge<FStream>> getBoltG() {
+		return boltG;
+	}
+
+	public HashMap<FStream, FlexyBolt> getBoltMap() {
+		return boltMap;
 	}
 }

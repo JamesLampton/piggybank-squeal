@@ -47,7 +47,7 @@ import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriMakePigTuples;
+import org.apache.pig.piggybank.squeal.flexy.oper.MakePigTuples;
 import org.joda.time.DateTime;
 import org.mortbay.util.ajax.JSON;
 
@@ -257,7 +257,7 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 	}
 
 	public Class<? extends BaseFunction> getTupleConverter() {
-		return TriMakePigTuples.class;
+		return MakePigTuples.class;
 	}
 
 

@@ -16,14 +16,13 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.pig.PigException;
@@ -37,6 +36,11 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.util.PlanHelper;
 import org.apache.pig.piggybank.squeal.backend.storm.io.StormPOStoreImpl;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.CombineInverter;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.NullableTuple;
@@ -44,13 +48,7 @@ import org.apache.pig.impl.io.PigNullableWritable;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.MultiMap;
 
-import backtype.storm.tuple.Values;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
-
-public class TriMapFunc extends StormBaseFunction {
+public class MapFunc extends FlexyBaseFunction {
 
 	private static final Tuple DUMMYTUPLE = null;
 	private PlanExecutor mapPlanExecutor;
@@ -60,8 +58,8 @@ public class TriMapFunc extends StormBaseFunction {
 	private String metricsAnnotation;
 	
 	@Override
-	public void	prepare(Map conf, TridentOperationContext context) {
-		super.prepare(conf, context);
+	public void	prepare(IRunContext context) {
+		super.prepare(context);
 		
 		// Initialize any stores.
 //		System.out.println("TriMapFunc.prepare -- conf: " + conf);
@@ -69,8 +67,8 @@ public class TriMapFunc extends StormBaseFunction {
 		
 		if (isLeaf) {
 			try {
-				mapPlanExecutor.setup((String) conf.get("storm.id"), context.getPartitionIndex());
-				negMapPlanExecutor.setup((String) conf.get("storm.id"), context.getPartitionIndex());
+				mapPlanExecutor.setup(context.getStormId(), context.getPartitionIndex());
+				negMapPlanExecutor.setup(context.getStormId(), context.getPartitionIndex());
 			} catch (IOException e) {
 				throw new RuntimeException(e);
 			}
@@ -135,7 +133,7 @@ public class TriMapFunc extends StormBaseFunction {
 			}
 		}
 
-		public void execute(TridentTuple tuple, TridentCollector collector, Integer tive) {
+		public void execute(IFlexyTuple tuple, ICollector collector, Integer tive) {
 			// Bind the tuple.
 			root.attachInput((Tuple) ((PigNullableWritable) tuple.get(1)).getValueAsPigType());
 			
@@ -147,7 +145,7 @@ public class TriMapFunc extends StormBaseFunction {
 			}
 		}
 		
-	    public void collect(TridentCollector collector, Tuple tuple, Integer tive) throws ExecException {
+	    public void collect(ICollector collector, Tuple tuple, Integer tive) throws ExecException {
 //	    	System.out.println("Map collect: " + tuple + " mapKeyType: " + mapKeyType);
 
 	    	if (computeKey) {
@@ -164,13 +162,13 @@ public class TriMapFunc extends StormBaseFunction {
 	    		val.setIndex(index);
 
 //	    		System.out.println("Emit k: " + key + " -- v: " + val);
-	    		collector.emit(new Values(key, val, tive));    		
+	    		collector.emit(new FValues(key, val, tive));    		
 	    	} else {
-	    		collector.emit(new Values(null, new NullableTuple(tuple), tive));
+	    		collector.emit(new FValues(null, new NullableTuple(tuple), tive));
 	    	}
 	    }
 		
-		void runPipeLine(TridentCollector collector, Integer tive) throws ExecException {
+		void runPipeLine(ICollector collector, Integer tive) throws ExecException {
 			while(true){
 	            Result res = leaf.getNextTuple();
 	            if(res.returnStatus==POStatus.STATUS_OK){
@@ -208,7 +206,7 @@ public class TriMapFunc extends StormBaseFunction {
 		}
 	}
 
-	public TriMapFunc(PigContext pc, PhysicalPlan physicalPlan, byte mapKeyType, boolean isCombined, PhysicalOperator activeRoot, boolean isLeaf, String name) {
+	public MapFunc(PigContext pc, PhysicalPlan physicalPlan, byte mapKeyType, boolean isCombined, PhysicalOperator activeRoot, boolean isLeaf, String name) {
 		super(pc);
 		
 		// Set this variable to determine if the store leaves are removed.
@@ -261,7 +259,7 @@ public class TriMapFunc extends StormBaseFunction {
 	}
 	
 	@Override
-	public void execute(TridentTuple tuple, TridentCollector collector) {
+	public void execute(IFlexyTuple tuple, ICollector collector) {
 //		System.out.println("Map: " + tuple + " activeRoot: " + mapPlanExecutor.root + " leaf: " + mapPlanExecutor.leaf);
 		
 		collector = doMetricsStart(collector);
@@ -278,9 +276,9 @@ public class TriMapFunc extends StormBaseFunction {
 		doMetricsStop(collector);
 	}
 
-	static public class MakeKeyRawValue extends BaseFunction {
-		@Override
-		public void execute(TridentTuple tuple, TridentCollector collector) {
+	static public class MakeKeyRawValue implements IFunction {
+		
+		public void execute(IFlexyTuple tuple, ICollector collector) {
 			// Re-wrap the object with a new PigNullableWritable.
 			
 			PigNullableWritable t = (PigNullableWritable) tuple.get(0);
@@ -288,17 +286,37 @@ public class TriMapFunc extends StormBaseFunction {
 			
 			try {
 				PigNullableWritable raw = HDataType.getWritableComparableTypes(o, HDataType.findTypeFromNullableWritable(t));
-				collector.emit(new Values(raw));
+				collector.emit(new FValues(raw));
 			} catch (ExecException e) {
 				throw new RuntimeException(e);
 			}
+		}
+
+		@Override
+		public void prepare(IRunContext context) {
+			
+		}
+
+		@Override
+		public void cleanup() {
+			
 		}		
 	}
 	
-	static public class Copy extends BaseFunction {
-		@Override
-		public void execute(TridentTuple tuple, TridentCollector collector) {
+	static public class Copy implements IFunction {
+		
+		public void execute(IFlexyTuple tuple, ICollector collector) {
 			collector.emit(new ArrayList<Object>(tuple.getValues()));
+		}
+
+		@Override
+		public void prepare(IRunContext context) {
+			
+		}
+
+		@Override
+		public void cleanup() {
+			
 		}		
 	}
 

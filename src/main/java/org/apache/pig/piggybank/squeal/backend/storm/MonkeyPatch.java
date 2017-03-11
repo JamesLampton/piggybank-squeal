@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal;
+package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.lang.reflect.Field;
 import java.util.List;

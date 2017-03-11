@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -42,7 +42,11 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.util.PlanHelper;
 import org.apache.pig.piggybank.squeal.backend.storm.io.StormPOStoreImpl;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper.CombineWrapperState;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper.CombineWrapperState;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
@@ -51,12 +55,7 @@ import org.apache.pig.impl.io.PigNullableWritable;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.Pair;
 
-import backtype.storm.tuple.Values;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
-
-public class TriReduce extends StormBaseFunction {
+public class Reduce extends FlexyBaseFunction {
 
 	private PhysicalPlan reducePlan;
 	private PhysicalOperator[] roots;
@@ -88,13 +87,13 @@ public class TriReduce extends StormBaseFunction {
 	}
 	
 	@Override
-	public void	prepare(Map conf, TridentOperationContext context) {
-		super.prepare(conf, context);
+	public void	prepare(IRunContext context) {
+		super.prepare(context);
 		
 		// Initialize any stores.
 		if (isLeaf) {
 			try {
-				setup((String) conf.get("storm.id"), context.getPartitionIndex());
+				setup(context.getStormId(), context.getPartitionIndex());
 				// TODO: -- handle the negative stuff too.
 			} catch (IOException e) {
 				throw new RuntimeException(e);
@@ -102,7 +101,7 @@ public class TriReduce extends StormBaseFunction {
 		}
 	}
 	
-	public TriReduce(PigContext pc, PhysicalPlan plan, boolean noNegative, boolean isLeaf, String name) {
+	public Reduce(PigContext pc, PhysicalPlan plan, boolean noNegative, boolean isLeaf, String name) {
 		super(pc);
 		
 		this.noNegative = noNegative;
@@ -138,16 +137,16 @@ public class TriReduce extends StormBaseFunction {
 		}
 	}
 	
-	class FakeCollector implements TridentCollector {
+	class FakeCollector implements ICollector {
 
-		private TridentCollector collector;
+		private ICollector collector;
 		
 		private Map<Writable, IntWritable> last_res = new HashMap<Writable, IntWritable>();
 		private Map<Writable, IntWritable> cur_res = new HashMap<Writable, IntWritable>();
 
 		int state = 0;
 		
-		public FakeCollector(TridentCollector collector) {
+		public FakeCollector(ICollector collector) {
 			this.collector = collector;
 		}
 		
@@ -217,7 +216,7 @@ public class TriReduce extends StormBaseFunction {
 						}
 												
 						// Emit to the stream.
-						collector.emit(new Values(null, HDataType.getWritableComparableTypes(ent.getKey(), t), msign));
+						collector.emit(new FValues(null, HDataType.getWritableComparableTypes(ent.getKey(), t), msign));
 					} catch (ExecException e) {
 						throw new RuntimeException(e);
 					}
@@ -241,7 +240,7 @@ public class TriReduce extends StormBaseFunction {
 	}
 	
 	@Override
-	public void execute(TridentTuple tri_tuple, TridentCollector collector) {
+	public void execute(IFlexyTuple tri_tuple, ICollector collector) {
 //		System.out.println("TriReduce input: " + tri_tuple);
 		
 		PigNullableWritable key = (PigNullableWritable) tri_tuple.get(0);
@@ -299,7 +298,7 @@ public class TriReduce extends StormBaseFunction {
 		}
 	};
 
-	public void runReduce(PigNullableWritable key, List<NullableTuple> tuples, TridentCollector collector) {
+	public void runReduce(PigNullableWritable key, List<NullableTuple> tuples, ICollector collector) {
 		// Sort the tuples as the shuffle would.
 		Collections.sort(tuples, NullableTupleComparator);
 //		System.out.println("runReduce: " + tuples);
@@ -324,13 +323,13 @@ public class TriReduce extends StormBaseFunction {
 		}
 	}
 	
-	public boolean processOnePackageOutput(TridentCollector collector) throws ExecException  {
+	public boolean processOnePackageOutput(ICollector collector) throws ExecException  {
         Result res = pack.getNextTuple();
         if(res.returnStatus==POStatus.STATUS_OK){
             Tuple packRes = (Tuple)res.result;
             
             if(leaf == null || reducePlan.isEmpty()){
-                collector.emit(new Values(null, packRes));
+                collector.emit(new FValues(null, packRes));
                 return false;
             }
             for (int i = 0; i < roots.length; i++) {
@@ -361,13 +360,13 @@ public class TriReduce extends StormBaseFunction {
      * @param collector 
      * @throws ExecException 
      */
-    protected void runPipeline(PhysicalOperator leaf, TridentCollector collector) throws ExecException {
+    protected void runPipeline(PhysicalOperator leaf, ICollector collector) throws ExecException {
         
         while(true)
         {
             Result redRes = leaf.getNextTuple();
             if(redRes.returnStatus==POStatus.STATUS_OK){
-                collector.emit(new Values(null, (Tuple)redRes.result));
+                collector.emit(new FValues(null, (Tuple)redRes.result));
                 continue;
             }
             

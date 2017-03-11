@@ -23,12 +23,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -36,14 +42,6 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
-
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Values;
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.operation.TridentCollector;
-import storm.trident.state.StateFactory;
-import storm.trident.state.map.MapState;
-import storm.trident.tuple.TridentTuple;
 
 public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	public static final String CACHE_SIZE_CONF = "flexy.stage1.cache.size";
@@ -54,15 +52,15 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	private static final Log log = LogFactory.getLog(Stage1Executor.class);
 	
 	private LoadingCache<Writable, T> cache;
-	private CombinerAggregator<T> agg;
-	private TridentCollector collector;
+	private ICombinerAggregator<T> agg;
+	private ICollector collector;
 	private int max_size = 1000;
 	private int expiry_ms = 1000;
 	
 	long last_stats_dump = 0;
 	long cache_stats_interval_min = -1;
 	
-	private StateFactory sf;
+	private IStateFactory sf;
 	
 	// This represents the current state value.
 	Map<Writable, T> stateBacklog;
@@ -71,14 +69,14 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 	// Expired values to be written.
 	Map<Writable, T> writeAhead;
 	
-	private MapState<T> state;
-	private CombinerAggregator<T> storeAgg;
+	private IMapState<T> state;
+	private ICombinerAggregator<T> storeAgg;
 	private Throwable lastThrown = null;
 	private Writable activeKey;
 	long last_flush = 0;
 	long flush_interval_ms = 0;
 	
-	public Stage1Executor(CombinerAggregator<T> agg, CombinerAggregator<T> storeAgg, StateFactory sf) {
+	public Stage1Executor(ICombinerAggregator<T> agg, ICombinerAggregator<T> storeAgg, IStateFactory sf) {
 		this.agg = agg;
 		this.storeAgg = storeAgg;
 		this.sf = sf;
@@ -92,13 +90,9 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		this.expiry_ms = value;
 	}
 	
-	public void prepare(Map stormConf, TopologyContext context, 
-			TridentCollector collector) {
+	public void prepare(IRunContext context) {
 		// Create the state.
-		state = (MapState<T>) sf.makeState(stormConf, 
-				null, 
-				context.getThisTaskIndex(), 
-				context.getComponentTasks(context.getThisComponentId()).size());
+		state = (IMapState<T>) sf.makeState(context);
 		
 		// Create a state backlog.
 		stateBacklog = new HashMap<Writable, T>();
@@ -106,13 +100,13 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		writeAhead = new HashMap<Writable, T>();
 		
 		// Pull configurations from conf.
-		Number conf_int = (Number) stormConf.get(CACHE_SIZE_CONF);
+		Number conf_int = (Number) context.get(CACHE_SIZE_CONF);
 		if (conf_int != null) max_size = conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(CACHE_EXPIRY_CONF);
+		conf_int = (Number) context.get(CACHE_EXPIRY_CONF);
 		if (conf_int != null) expiry_ms= conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
+		conf_int = (Number) context.get(FLUSH_INTERVAL_CONF);
 		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(CACHE_STATS_INTERVAL_CONF);
+		conf_int = (Number) context.get(CACHE_STATS_INTERVAL_CONF);
 		if (conf_int != null) cache_stats_interval_min = conf_int.intValue(); 
 		
 		// Create the cache to hold the current computations before state manipulation.
@@ -148,7 +142,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		this.collector = collector;
 	}
 	
-	public void execute(final Writable key, TridentTuple tuple) {
+	public void execute(final Writable key, IFlexyTuple tuple) {
 		try {
 			// Pull the current value.
 			T cur = cache.get(key);
@@ -263,7 +257,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 			writeAhead.put(note.getKey(), cur);
 
 			// Emit the result.
-			collector.emit(new Values(note.getKey(), cur));
+			collector.emit(new FValues(note.getKey(), cur));
 		} catch (Throwable e) {
 			lastThrown = e;
 		}

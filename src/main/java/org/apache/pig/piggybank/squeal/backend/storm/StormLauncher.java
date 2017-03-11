@@ -53,7 +53,6 @@ import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.JarManager;
 import org.apache.pig.impl.util.ObjectSerializer;
-import org.apache.pig.piggybank.squeal.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.MRtoSConverter;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.ReplJoinFileFixer;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;

@@ -19,12 +19,16 @@
 package org.apache.pig.piggybank.squeal.flexy.executors;
 
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -33,12 +37,6 @@ import com.google.common.cache.RemovalCause;
 import com.google.common.cache.RemovalListener;
 import com.google.common.cache.RemovalNotification;
 
-import backtype.storm.task.TopologyContext;
-import backtype.storm.tuple.Values;
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.operation.TridentCollector;
-import storm.trident.tuple.TridentTuple;
-
 public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	public static final String CACHE_SIZE_CONF = "flexy.stage0.cache.size";
 	public static final String CACHE_EXPIRY_CONF = "flexy.stage0.cache.expiry_ms";
@@ -46,8 +44,8 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	public static final String CACHE_STATS_INTERVAL_CONF = "flexy.stage0.cache.stats.interval_min";
 
 	private LoadingCache<Writable, T> cache;
-	private CombinerAggregator<T> agg;
-	private TridentCollector collector;
+	private ICombinerAggregator<T> agg;
+	private ICollector collector;
 	private int max_size = 1000;
 	private int expiry_ms = 1000;
 	private static final Log log = LogFactory.getLog(Stage0Executor.class);
@@ -59,7 +57,7 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 	long last_stats_dump = 0;
 	long cache_stats_interval_min = 0;
 	
-	public Stage0Executor(CombinerAggregator<T> agg) {
+	public Stage0Executor(ICombinerAggregator<T> agg) {
 		this.agg = agg;
 	}
 
@@ -71,17 +69,16 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		this.expiry_ms = value;
 	}
 	
-	public void prepare(Map stormConf, TopologyContext context, 
-			TridentCollector collector) {
+	public void prepare(IRunContext context, ICollector collector) {
 		
 		// Pull configurations from conf.
-		Number conf_int = (Number) stormConf.get(CACHE_SIZE_CONF);
+		Number conf_int = (Number) context.get(CACHE_SIZE_CONF);
 		if (conf_int != null) max_size = conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(CACHE_EXPIRY_CONF);
+		conf_int = (Number) context.get(CACHE_EXPIRY_CONF);
 		if (conf_int != null) expiry_ms= conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(FLUSH_INTERVAL_CONF);
+		conf_int = (Number) context.get(FLUSH_INTERVAL_CONF);
 		if (conf_int != null) flush_interval_ms = conf_int.intValue(); 
-		conf_int = (Number) stormConf.get(CACHE_STATS_INTERVAL_CONF);
+		conf_int = (Number) context.get(CACHE_STATS_INTERVAL_CONF);
 		if (conf_int != null) cache_stats_interval_min = conf_int.intValue(); 
 		
 		CacheBuilder<Writable, T> cb = CacheBuilder.newBuilder()
@@ -108,7 +105,7 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		this.collector = collector;
 	}
 	
-	public void execute(Writable key, TridentTuple tuple) {
+	public void execute(Writable key, IFlexyTuple tuple) {
 		try {
 			// Pull the current value.
 			T cur = cache.get(key);
@@ -178,7 +175,7 @@ public class Stage0Executor<T> implements RemovalListener<Writable, T> {
 		try {
 //			System.err.println("  s0emit: " + note.getCause() + " " + note.getKey() + " " + note.getValue());
 			// Emit the record.
-			collector.emit(new Values(note.getKey(), note.getValue()));
+			collector.emit(new FValues(note.getKey(), note.getValue()));
 		} catch (Throwable e) {
 			lastThrown = e;
 		}

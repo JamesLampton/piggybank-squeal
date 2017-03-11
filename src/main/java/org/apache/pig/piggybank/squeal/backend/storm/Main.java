@@ -56,16 +56,16 @@ import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapperUtils.LimitedOutstandingInvocationHandler;
 import org.apache.pig.piggybank.squeal.backend.storm.io.WritableKryoSerializer;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.CombineWrapper;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriBasicPersist;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriCombinePersist;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriMapFunc;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriReduce;
-import org.apache.pig.piggybank.squeal.backend.storm.oper.TriWindowCombinePersist;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper;
+import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.CombinePersist;
+import org.apache.pig.piggybank.squeal.flexy.oper.MapFunc;
+import org.apache.pig.piggybank.squeal.flexy.oper.Reduce;
+import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.apache.pig.piggybank.squeal.metrics.TransportMeasureHelper;
 import org.yaml.snakeyaml.Yaml;
@@ -201,7 +201,7 @@ public class Main {
 					//				System.out.println("processMapSOP -- input: " + input + " " + input_sop + " " + po);
 					output = input.each(
 							input.getOutputFields(),
-							new TriMapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
+							new MapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
 							output_fields
 							).project(output_fields);
 					outputs.add(output);
@@ -299,17 +299,17 @@ public class Main {
 				CombineWrapper.Factory agg_fact = null;				
 				if (sop.getType() == StormOper.OpType.BASIC_PERSIST) {
 					if (sop.getWindowOptions() == null) {
-						agg_fact = new CombineWrapper.Factory(new TriBasicPersist());
+						agg_fact = new CombineWrapper.Factory(new BasicPersist());
 					} else {
 						// We'll be windowing things.
-						agg_fact = new CombineWrapper.Factory(new TriWindowCombinePersist(sop.getWindowOptions()));
+						agg_fact = new CombineWrapper.Factory(new WindowCombinePersist(sop.getWindowOptions()));
 					}
 				} else {					
 					// We need to trim things from the plan re:PigCombiner.java
 					POPackage pack = (POPackage) sop.getPlan().getRoots().get(0);
 					sop.getPlan().remove(pack);
 
-					agg_fact = new CombineWrapper.Factory(new TriCombinePersist(pack, sop.getPlan(), sop.mapKeyType));
+					agg_fact = new CombineWrapper.Factory(new CombinePersist(pack, sop.getPlan(), sop.mapKeyType));
 				}
 				
 				Fields orig_input_fields = inputs.get(0).getOutputFields();
@@ -322,7 +322,7 @@ public class Main {
 					// We need to encode the key into a value (sans index) to group properly.
 					input = input.each(
 								new Fields(input.getOutputFields().get(0)),
-								new TriMapFunc.MakeKeyRawValue(),
+								new MapFunc.MakeKeyRawValue(),
 								group_key
 							);
 
@@ -406,7 +406,7 @@ public class Main {
 				// Re-alias the raw as the key.
 				output = output.each(
 							group_key,
-							new TriMapFunc.Copy(),
+							new MapFunc.Copy(),
 							new Fields(orig_input_fields.get(0))
 						);
 
@@ -426,7 +426,7 @@ public class Main {
 					// Need to reduce
 					Stream output = input.each(
 							input.getOutputFields(), 
-							new TriReduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
+							new Reduce(pc, sop.getPlan(), false, leaves.contains(sop), sop.name()), 
 							output_fields
 							).project(output_fields);
 					//output.each(output.getOutputFields(), new Debug());
@@ -563,8 +563,8 @@ public class Main {
 		
 	    // Squeal Types
 	    conf.registerSerialization(CombineWrapper.CombineWrapperState.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(TriBasicPersist.TriBasicPersistState.class, WritableKryoSerializer.class);
-	    conf.registerSerialization(TriWindowCombinePersist.WindowCombineState.class, WritableKryoSerializer.class);
+	    conf.registerSerialization(BasicPersist.TriBasicPersistState.class, WritableKryoSerializer.class);
+	    conf.registerSerialization(WindowCombinePersist.WindowCombineState.class, WritableKryoSerializer.class);
 	    conf.registerSerialization(CombineTupleWritable.class, WritableKryoSerializer.class);
 	}
 	

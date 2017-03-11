@@ -24,7 +24,7 @@ import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.pig.piggybank.squeal.MonkeyPatch;
+import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
 
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Values;

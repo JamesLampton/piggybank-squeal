@@ -16,26 +16,23 @@
  * limitations under the License.
  */
 
-package org.apache.pig.piggybank.squeal.backend.storm.oper;
+package org.apache.pig.piggybank.squeal.flexy.oper;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map.Entry;
-import java.util.Set;
-
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IPigIdxState;
 import org.apache.pig.piggybank.squeal.backend.storm.state.MapIdxWritable;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
 
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.tuple.TridentTuple;
-
-public class TriBasicPersist implements CombinerAggregator<MapIdxWritable> {
+public class BasicPersist implements ICombinerAggregator<MapIdxWritable> {
 	
 	static public List<NullableTuple> getTuples(MapIdxWritable state) {
 		List<NullableTuple> ret = new ArrayList<NullableTuple>();
@@ -56,7 +53,7 @@ public class TriBasicPersist implements CombinerAggregator<MapIdxWritable> {
 	}
 
 	@Override
-	public MapIdxWritable init(TridentTuple tuple) {
+	public MapIdxWritable init(IFlexyTuple tuple) {
 		MapIdxWritable ret = zero();
 		NullableTuple values = (NullableTuple) tuple.get(1);
 		
@@ -140,7 +137,7 @@ public class TriBasicPersist implements CombinerAggregator<MapIdxWritable> {
 
 		@Override
 		public List<NullableTuple> getTuples(Text which) {
-			return TriBasicPersist.getTuples(this);
+			return BasicPersist.getTuples(this);
 		}
 		
 		@Override
