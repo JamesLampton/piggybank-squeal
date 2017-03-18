@@ -97,74 +97,74 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public int getThisTaskId() {
-			// TODO Auto-generated method stub
-			return 0;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public String getThisComponentId() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public int getThisTaskIndex() {
-			// TODO Auto-generated method stub
-			return 0;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public String getStormId() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public int getPartitionIndex() {
-			// TODO Auto-generated method stub
-			return 0;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public Object get(String propertyKey) {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public String getExposedName(FStream cur) {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public Map getStormConf() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public FFields getInputSchema() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public void runWaitStrategy(int emptyStreak) {
-			// TODO Auto-generated method stub
-			
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public TopologyContext getStormTopologyContext() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 
 		@Override
 		public WorkerTopologyContext getWorkerTopologyContext() {
-			// TODO Auto-generated method stub
-			return null;
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 		
 	}
@@ -179,8 +179,8 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public void emit(String exposedName, Tuple anchor, Values values) {
-			// TODO Auto-generated method stub
-			
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
 		
 	}

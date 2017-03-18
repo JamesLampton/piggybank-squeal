@@ -112,7 +112,6 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 	
 	@Override
 	public void setLocation(String location, Job job) throws IOException {
-		// TODO Auto-generated method stub
 		
 	}
 
@@ -123,8 +122,7 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 				TaskAttemptContext arg1) throws IOException,
 				InterruptedException {
 			// This should never be called.
-			// TODO Auto-generated method stub
-			return null;
+			throw new RuntimeException("This should never be called...");
 		}
 
 		@Override
@@ -142,13 +140,11 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 	@Override
 	public void prepareToRead(RecordReader reader, PigSplit split)
 			throws IOException {
-		// TODO Auto-generated method stub
 		
 	}
 
 	@Override
 	public Tuple getNext() throws IOException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 	
@@ -174,21 +170,18 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 	@Override
 	public ResourceStatistics getStatistics(String location, Job job)
 			throws IOException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public String[] getPartitionKeys(String location, Job job)
 			throws IOException {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
 	@Override
 	public void setPartitionFilter(Expression partitionFilter)
 			throws IOException {
-		// TODO Auto-generated method stub
 		
 	}
 	

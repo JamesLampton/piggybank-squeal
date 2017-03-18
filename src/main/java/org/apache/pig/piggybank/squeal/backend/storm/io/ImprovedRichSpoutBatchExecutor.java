@@ -345,8 +345,8 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         }
 
 		public void reset(ICollector pipelineExecutor) {
-			// TODO Auto-generated method stub
-			throw new RuntimeException("Not Implemented");
+			// TODO Auto-generated method stub with exception
+			throw new RuntimeException("Not implemented");
 		}
         
     }

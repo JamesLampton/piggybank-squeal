@@ -7,7 +7,8 @@ import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchEx
 public class SourceOutputCollector {
 
 	public SourceOutputCollector(CaptureCollector _collector) {
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub with exception
+		throw new RuntimeException("Not implemented");
 //		new SpoutOutputCollector(_collector)
 	}
 	

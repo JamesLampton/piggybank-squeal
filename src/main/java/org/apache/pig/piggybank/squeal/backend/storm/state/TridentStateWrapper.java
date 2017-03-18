@@ -9,13 +9,14 @@ import storm.trident.state.StateFactory;
 public class TridentStateWrapper implements IStateFactory {
 
 	public TridentStateWrapper(StateFactory stateFactory) {
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 
 	@Override
 	public IMapState makeState(IRunContext context) {
-		// TODO Auto-generated method stub
-		return null;
+		// TODO Auto-generated method stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 
 }

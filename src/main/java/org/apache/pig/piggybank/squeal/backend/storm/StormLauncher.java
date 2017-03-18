@@ -328,14 +328,12 @@ public class StormLauncher extends Launcher {
 
 	@Override
 	public void kill() throws BackendException {
-		// TODO Auto-generated method stub
 		// Not really necessary for a streaming job...
 	}
 
 	@Override
 	public void killJob(String jobID, Configuration conf)
 			throws BackendException {
-		// TODO Auto-generated method stub
 		// Not really necessary for a streaming job...
 	}
 }

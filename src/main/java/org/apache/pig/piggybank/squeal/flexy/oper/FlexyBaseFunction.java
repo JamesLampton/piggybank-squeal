@@ -210,8 +210,5 @@ public abstract class FlexyBaseFunction implements IFunction {
 	}
 
 	@Override
-	public void cleanup() {
-		// TODO Auto-generated method stub
-		
-	}
+	public void cleanup() {	}
 }

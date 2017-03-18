@@ -101,7 +101,6 @@ public class SignedPigSpoutWrapper extends SpoutWrapper {
 
 		@Override
 		public void cleanup() {
-			// TODO Auto-generated method stub
 			
 		}
 

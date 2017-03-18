@@ -14,11 +14,13 @@ import backtype.storm.tuple.Fields;
 public class FFields {
 
 	public FFields(String... fields) {
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 
 	public FFields(List<String> list) {
-		// TODO Auto-generated constructor stub
+		// TODO Auto-generated constructor stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 
 	public static FFields fieldsConcat(FFields a, FFields b) {
@@ -32,12 +34,13 @@ public class FFields {
 //	        return new Fields(ret);
 //	    }
 		
-		// TODO Auto-generated method stub
-		return null;
+		// TODO Auto-generated method stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 
 	public static FFields getSingleOutputStreamFields(ISource source) {
-		// TODO Auto-generated method stub
+		// TODO Auto-generated method stub with exception
+		throw new RuntimeException("Not implemented");
 		// storm.trident.util.TridentUtils
 //		public static Fields getSingleOutputStreamFields(IComponent component) {
 //	        OutputFieldsGetter getter = new OutputFieldsGetter();
@@ -52,12 +55,11 @@ public class FFields {
 //	        }
 //	        return new Fields(si.get_output_fields());        
 //	    }
-		return null;
 	}
 
 	public String get(int i) {
-		// TODO Auto-generated method stub
-		return null;
+		// TODO Auto-generated method stub with exception
+		throw new RuntimeException("Not implemented");
 	}
 	
 	public List<String> toList() {

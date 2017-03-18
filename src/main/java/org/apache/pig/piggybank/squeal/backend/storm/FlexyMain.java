@@ -226,27 +226,27 @@ public class FlexyMain extends Main {
 
 			@Override
 			public void fail(Object msgId) {
-				// TODO Auto-generated method stub
-				
+				// TODO Auto-generated method stub with exception
+				throw new RuntimeException("Not implemented");
 			}
 
 			@Override
 			public void ack(Object msgId) {
-				// TODO Auto-generated method stub
-				
+				// TODO Auto-generated method stub with exception
+				throw new RuntimeException("Not implemented");
 			}
 
 			@Override
 			public void open(IRunContext context,
 					SourceOutputCollector sourceOutputCollector) {
-				// TODO Auto-generated method stub
-				
+				// TODO Auto-generated method stub with exception
+				throw new RuntimeException("Not implemented");
 			}
 
 			@Override
 			public void nextTuple() {
-				// TODO Auto-generated method stub
-				
+				// TODO Auto-generated method stub with exception
+				throw new RuntimeException("Not implemented");
 			}
 		}
 		

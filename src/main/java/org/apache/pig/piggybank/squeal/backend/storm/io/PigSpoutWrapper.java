@@ -85,7 +85,6 @@ public class PigSpoutWrapper extends SpoutWrapper {
 
 		@Override
 		public void cleanup() {
-			// TODO Auto-generated method stub
 			
 		}
 

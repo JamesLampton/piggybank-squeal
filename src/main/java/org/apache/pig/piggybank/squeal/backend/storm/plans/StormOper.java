@@ -80,7 +80,6 @@ public class StormOper extends Operator<SOpPlanVisitor> {
 
 	@Override
 	public void visit(SOpPlanVisitor v) throws VisitorException {
-		// TODO Auto-generated method stub
 		v.visitSOp(this);
 	}
 

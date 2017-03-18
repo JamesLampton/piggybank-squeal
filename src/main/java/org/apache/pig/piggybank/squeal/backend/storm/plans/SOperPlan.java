@@ -55,7 +55,6 @@ public class SOperPlan extends OperatorPlan<StormOper> {
         try {
             printer.visit();
         } catch (VisitorException e) {
-            // TODO Auto-generated catch block
             throw new RuntimeException("Unable to get String representation of plan:" + e );
         }
         return baos.toString();
