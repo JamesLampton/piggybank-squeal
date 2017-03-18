@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectInputStream;
 import java.io.PrintStream;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,6 +54,7 @@ import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.MultiMap;
 import org.apache.pig.impl.util.ObjectSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
+import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutSource;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapperUtils.LimitedOutstandingInvocationHandler;
 import org.apache.pig.piggybank.squeal.backend.storm.io.WritableKryoSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
@@ -92,6 +94,7 @@ import backtype.storm.generated.StreamInfo;
 import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichSpout;
+import backtype.storm.topology.OutputFieldsGetter;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
 import storm.trident.operation.BaseFilter;
@@ -125,7 +128,7 @@ public class FlexyMain extends Main {
 		splan = (SOperPlan) ObjectSerializer.deserialize(pc.getProperties().getProperty(StormLauncher.PLANKEY));
 		ft = setupFlexyTopology(pc);
 	}
-		
+	
 	class DepWalker extends SOpPlanVisitor {
 
 		private static final String DISABLE_SPOUT_WRAPPER_KEY = "pig.streaming.disable.spout.wrapper";
@@ -211,43 +214,6 @@ public class FlexyMain extends Main {
 			}
 
 			return inputs;
-		}
-		
-		class SpoutSource implements ISource {
-			private IRichSpout s;
-			public SpoutSource(IRichSpout s) {
-				this.s = s;
-			}
-			
-			@Override
-			public IComponent getSpout() {
-				return s;
-			}
-
-			@Override
-			public void fail(Object msgId) {
-				// TODO Auto-generated method stub with exception
-				throw new RuntimeException("Not implemented");
-			}
-
-			@Override
-			public void ack(Object msgId) {
-				// TODO Auto-generated method stub with exception
-				throw new RuntimeException("Not implemented");
-			}
-
-			@Override
-			public void open(IRunContext context,
-					SourceOutputCollector sourceOutputCollector) {
-				// TODO Auto-generated method stub with exception
-				throw new RuntimeException("Not implemented");
-			}
-
-			@Override
-			public void nextTuple() {
-				// TODO Auto-generated method stub with exception
-				throw new RuntimeException("Not implemented");
-			}
 		}
 		
 		public void visitSOp(StormOper sop) throws VisitorException {

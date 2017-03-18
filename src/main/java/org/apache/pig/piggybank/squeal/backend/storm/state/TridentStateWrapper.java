@@ -18,17 +18,20 @@
 
 package org.apache.pig.piggybank.squeal.backend.storm.state;
 
+import java.io.Serializable;
+
 import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
 import storm.trident.state.StateFactory;
 
-public class TridentStateWrapper implements IStateFactory {
+public class TridentStateWrapper implements IStateFactory, Serializable {
+
+	private StateFactory stateFactory;
 
 	public TridentStateWrapper(StateFactory stateFactory) {
-		// TODO Auto-generated constructor stub with exception
-		throw new RuntimeException("Not implemented");
+		this.stateFactory = stateFactory;
 	}
 
 	@Override

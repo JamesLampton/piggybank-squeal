@@ -18,6 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy.oper;
 
+import java.io.Serializable;
 import java.net.InetAddress;
 import java.util.List;
 import java.util.Random;
@@ -38,7 +39,7 @@ import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.apache.pig.data.SchemaTupleBackend;
 import org.apache.pig.impl.PigContext;
 
-public abstract class FlexyBaseFunction implements IFunction {
+public abstract class FlexyBaseFunction implements IFunction, Serializable {
 
 	protected PigContext pc;
 	protected IMetricsTransport mt;

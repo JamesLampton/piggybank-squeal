@@ -19,6 +19,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.List;
 
 import org.apache.hadoop.mapreduce.Job;
@@ -65,7 +66,7 @@ public class SignedPigSpoutWrapper extends SpoutWrapper {
 		return MakePigTuples.class;
 	}
 	
-	static public class MakePigTuples implements IFunction {
+	static public class MakePigTuples implements IFunction, Serializable {
 		private TupleFactory tf;
 		
 		@Override

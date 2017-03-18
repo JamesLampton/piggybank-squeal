@@ -18,6 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy.oper;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -195,7 +196,7 @@ public class CombinePersist implements ICombinerAggregator<CombineTupleWritable>
 	}
 
 	// FIXME: Is this useful?
-	public static class StateClean implements IFunction {
+	public static class StateClean implements IFunction, Serializable {
 		@Override
 		public void execute(IFlexyTuple tuple, ICollector collector) {
 			FValues stuff = (FValues) tuple.get(1);

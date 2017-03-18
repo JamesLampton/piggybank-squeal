@@ -165,7 +165,7 @@ public class FStream implements Serializable {
 		case PROJECTION:
 			return output_fields;
 		case SPOUT:
-			return FFields.getSingleOutputStreamFields(source);
+			return source.getOutputFields();
 		default:
 			throw new RuntimeException("Unknown node type:" + nodeType);
 		}

@@ -18,6 +18,8 @@
 
 package org.apache.pig.piggybank.squeal.flexy.components;
 
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
+
 import backtype.storm.topology.IComponent;
 
 public interface ISource {
@@ -31,5 +33,7 @@ public interface ISource {
 	void open(IRunContext context, SourceOutputCollector sourceOutputCollector);
 
 	void nextTuple();
+
+	FFields getOutputFields();
 
 }

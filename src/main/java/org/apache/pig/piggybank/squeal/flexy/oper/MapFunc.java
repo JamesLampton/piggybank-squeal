@@ -276,7 +276,7 @@ public class MapFunc extends FlexyBaseFunction {
 		doMetricsStop(collector);
 	}
 
-	static public class MakeKeyRawValue implements IFunction {
+	static public class MakeKeyRawValue implements IFunction, Serializable {
 		
 		public void execute(IFlexyTuple tuple, ICollector collector) {
 			// Re-wrap the object with a new PigNullableWritable.
@@ -303,7 +303,7 @@ public class MapFunc extends FlexyBaseFunction {
 		}		
 	}
 	
-	static public class Copy implements IFunction {
+	static public class Copy implements IFunction, Serializable {
 		
 		public void execute(IFlexyTuple tuple, ICollector collector) {
 			collector.emit(new ArrayList<Object>(tuple.getValues()));

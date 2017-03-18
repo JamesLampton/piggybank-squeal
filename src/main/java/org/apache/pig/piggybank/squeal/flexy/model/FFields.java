@@ -18,69 +18,50 @@
 
 package org.apache.pig.piggybank.squeal.flexy.model;
 
+import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.pig.piggybank.squeal.flexy.components.ISource;
+// This is a shadow of the functionality from Storm's Fields and some TridentUtils
+//import backtype.storm.tuple.Fields;
 
-import backtype.storm.generated.StreamInfo;
-import backtype.storm.topology.IComponent;
-import backtype.storm.topology.OutputFieldsGetter;
-import backtype.storm.tuple.Fields;
-
-public class FFields {
+public class FFields implements Serializable {
+	private List<String> _fields;
+    private Map<String, Integer> _index = new HashMap<String, Integer>();
 
 	public FFields(String... fields) {
-		// TODO Auto-generated constructor stub with exception
-		throw new RuntimeException("Not implemented");
+		this(Arrays.asList(fields));
 	}
 
-	public FFields(List<String> list) {
-		// TODO Auto-generated constructor stub with exception
-		throw new RuntimeException("Not implemented");
+	public FFields(List<String> fields) {
+		_fields = new ArrayList<String>(fields.size());
+        for (String field : fields) {
+            if (_index.containsKey(field))
+                throw new IllegalArgumentException(
+                    String.format("duplicate field '%s'", field)
+                );
+            _index.put(field, _fields.size());
+            _fields.add(field);
+        }
 	}
 
-	public static FFields fieldsConcat(FFields a, FFields b) {
-		
-		// storm.trident.util.TridentUtils
-//		public static Fields fieldsConcat(Fields... fields) {
-//	        List<String> ret = new ArrayList<String>();
-//	        for(Fields f: fields) {
-//	            if(f!=null) ret.addAll(f.toList());
-//	        }
-//	        return new Fields(ret);
-//	    }
-		
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
-	}
-
-	public static FFields getSingleOutputStreamFields(ISource source) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
-		// storm.trident.util.TridentUtils
-//		public static Fields getSingleOutputStreamFields(IComponent component) {
-//	        OutputFieldsGetter getter = new OutputFieldsGetter();
-//	        component.declareOutputFields(getter);
-//	        Map<String, StreamInfo> declaration = getter.getFieldsDeclaration();
-//	        if(declaration.size()!=1) {
-//	            throw new RuntimeException("Trident only supports components that emit a single stream");
-//	        }
-//	        StreamInfo si = declaration.values().iterator().next();
-//	        if(si.is_direct()) {
-//	            throw new RuntimeException("Trident does not support direct streams");
-//	        }
-//	        return new Fields(si.get_output_fields());        
-//	    }
+	public static FFields fieldsConcat(FFields... fields) {
+		// Similar to: storm.trident.util.TridentUtils
+		List<String> ret = new ArrayList<String>();
+		for(FFields f: fields) {
+			if(f!=null) ret.addAll(f._fields);
+		}
+		return new FFields(ret);
 	}
 
 	public String get(int i) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		return _fields.get(i);
 	}
 	
 	public List<String> toList() {
-		return null;
+		return new ArrayList<String>(_fields);
 	}
 }

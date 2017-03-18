@@ -18,6 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy.oper;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -30,7 +31,7 @@ import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
-public class MakePigTuples implements IFunction {
+public class MakePigTuples implements IFunction, Serializable {
 	
 	Integer POS = new Integer(1);
 	Integer NEG = new Integer(-1);

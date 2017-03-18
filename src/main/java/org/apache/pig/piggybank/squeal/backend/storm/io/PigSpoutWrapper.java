@@ -19,6 +19,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.IOException;
+import java.io.Serializable;
 
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.pig.ResourceSchema;
@@ -59,7 +60,7 @@ public class PigSpoutWrapper extends SpoutWrapper {
 		return MakePigTuples.class;
 	}
 	
-	static public class MakePigTuples implements IFunction {
+	static public class MakePigTuples implements IFunction, Serializable {
 		Integer POS = new Integer(1);
 		Integer NEG = new Integer(-1);
 		private TupleFactory tf;
