@@ -45,7 +45,6 @@ public interface IRunContext {
 	Map getStormConf();
 	
 	TopologyContext getStormTopologyContext();
-	WorkerTopologyContext getWorkerTopologyContext();
 
 	FFields getInputSchema();
 

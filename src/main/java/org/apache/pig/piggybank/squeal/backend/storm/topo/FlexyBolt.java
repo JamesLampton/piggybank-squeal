@@ -39,8 +39,12 @@ import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
+import storm.trident.operation.TridentOperationContext;
+import storm.trident.tuple.TridentTupleView;
+import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
+import backtype.storm.spout.ISpoutWaitStrategy;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.task.WorkerTopologyContext;
@@ -62,7 +66,7 @@ public class FlexyBolt extends BaseRichBolt {
 	private OutputCollector collector;
 	private int expectedCoord = 0;
 	private int seenCoord = 0;
-	private Fields input_fields;
+	private FFields input_fields;
 	public static final String CRASH_ON_FAILURE_CONF = "flexy.bolt.crash.on.failure";
 	boolean crashOnError = false;
 	
@@ -80,93 +84,88 @@ public class FlexyBolt extends BaseRichBolt {
 	
 	class BoltRunContext implements IRunContext {
 		
-		public BoltRunContext(Map stormConf, TopologyContext context) {
-//			// Pull the spout wait strategy and initialize it.
-//			if (context.get("topology.spout.wait.strategy") != null) {
-//				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
-//				try {
-//					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
-//					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
-//					waitStrategy.prepare(stormConf);
-//				} catch (Exception e) {
-//					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
-//				}
-//
-//			}
+		private Map stormConf;
+		private TopologyContext topoContext;
+		private ISpoutWaitStrategy waitStrategy = null;
+		private TridentOperationContext triContext;
+
+		public BoltRunContext(Map stormConf, TopologyContext topoContext) {
+			this.stormConf = stormConf;
+			this.topoContext = topoContext;
+			
+			System.err.println("getInputSchema: " + getInputSchema());
+			FreshOutputFactory parent_tf = new TridentTupleView.FreshOutputFactory(new Fields(getInputSchema().toList()));
+			triContext = new TridentOperationContext(topoContext, parent_tf);
+			
+			// Pull the spout wait strategy and initialize it.
+			if (stormConf.get("topology.spout.wait.strategy") != null) {
+				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
+				try {
+					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
+					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
+					waitStrategy.prepare(stormConf);
+				} catch (Exception e) {
+					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
+				}
+			}
 		}
 
 		@Override
 		public int getThisTaskId() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return topoContext.getThisTaskId();
 		}
 
 		@Override
 		public String getThisComponentId() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return topoContext.getThisComponentId();
 		}
 
 		@Override
 		public int getThisTaskIndex() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return topoContext.getThisTaskIndex();
 		}
 
 		@Override
 		public String getStormId() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return (String) stormConf.get("storm.id");
 		}
 
 		@Override
 		public int getPartitionIndex() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return triContext.getPartitionIndex();
 		}
 
 		@Override
 		public Object get(String propertyKey) {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return stormConf.get(propertyKey);
 		}
 
 		@Override
 		public String getExposedName(FStream cur) {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return _getExposedName(cur);
 		}
 
 		@Override
 		public Map getStormConf() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return stormConf;
 		}
 
 		@Override
 		public FFields getInputSchema() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return input_fields;
 		}
 
 		@Override
 		public void runWaitStrategy(int emptyStreak) {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			if (this.waitStrategy != null) {
+				waitStrategy.emptyEmit(emptyStreak);
+			}
 		}
 
 		@Override
 		public TopologyContext getStormTopologyContext() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			return topoContext;
 		}
-
-		@Override
-		public WorkerTopologyContext getWorkerTopologyContext() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
-		}
-		
 	}
 	
 	class BoltCollector implements IOutputCollector {
@@ -178,9 +177,8 @@ public class FlexyBolt extends BaseRichBolt {
 		}
 
 		@Override
-		public void emit(String exposedName, Tuple anchor, Values values) {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+		public void emit(String exposedName, Object anchor, List values) {
+			collector.emit(exposedName, (Tuple) anchor, values);
 		}
 		
 	}
@@ -377,7 +375,7 @@ public class FlexyBolt extends BaseRichBolt {
 		idMap.put(source, name);
 	}
 	
-	public String getExposedName(FStream source) {
+	String _getExposedName(FStream source) {
 		return idMap.get(source);
 	}
 	
@@ -385,12 +383,7 @@ public class FlexyBolt extends BaseRichBolt {
 		return idMap.get(source);
 	}
 
-	public void setInputSchema(Fields input_fields) {
-		this.input_fields = input_fields;
+	public void setInputSchema(FFields fFields) {
+		this.input_fields = fFields;
 	}
-	
-	public Fields getInputSchema() {
-		return input_fields;
-	}
-
 }

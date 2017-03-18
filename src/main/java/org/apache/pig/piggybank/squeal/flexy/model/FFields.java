@@ -64,4 +64,12 @@ public class FFields implements Serializable {
 	public List<String> toList() {
 		return new ArrayList<String>(_fields);
 	}
+	
+	public String toString() {
+		StringBuilder sb = new StringBuilder();
+		sb.append("FFields(");
+		sb.append(_fields.toString());
+		sb.append(")");
+		return sb.toString();
+	}
 }

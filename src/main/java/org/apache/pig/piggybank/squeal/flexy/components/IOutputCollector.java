@@ -18,11 +18,10 @@
 
 package org.apache.pig.piggybank.squeal.flexy.components;
 
-import backtype.storm.tuple.Tuple;
-import backtype.storm.tuple.Values;
+import java.util.List;
 
 public interface IOutputCollector {
 
-	void emit(String exposedName, Tuple anchor, Values values);
+	void emit(String exposedName, Object anchor, List values);
 
 }

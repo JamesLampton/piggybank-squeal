@@ -429,7 +429,7 @@ public class FlexyMain extends Main {
 			String source_stream = source_b.getStreamName(edge.source);
 			
 			// Pull the schema of the input.
-			b.setInputSchema(new Fields(edge.source.getOutputFields().toList()));
+			b.setInputSchema(edge.source.getOutputFields());
 
 //			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
 //			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());

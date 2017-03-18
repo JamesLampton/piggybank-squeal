@@ -125,7 +125,7 @@ public class Binner {
 		// Determine the downstream subscribers.
 		for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {
 			Grouper gr = new Grouper(ent.getValue());
-			gr.prepare(context.getWorkerTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
+			gr.prepare(context.getStormTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
 					context.getStormTopologyContext().getComponentTasks(ent.getKey()));
 			groupings.add(gr);
 		}
