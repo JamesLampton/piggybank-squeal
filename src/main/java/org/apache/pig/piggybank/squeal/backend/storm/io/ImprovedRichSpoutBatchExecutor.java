@@ -32,6 +32,7 @@ import org.apache.curator.framework.recipes.shared.SharedCountListener;
 import org.apache.curator.framework.recipes.shared.SharedCountReader;
 import org.apache.curator.framework.state.ConnectionState;
 import org.apache.curator.retry.BoundedExponentialBackoffRetry;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
 import org.apache.pig.piggybank.squeal.metrics.IMetricsTransport;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 
@@ -342,6 +343,11 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
         public void emitDirect(int task, String stream, List<Object> values, Object id) {
             throw new UnsupportedOperationException("Trident does not support direct streams");
         }
+
+		public void reset(ICollector pipelineExecutor) {
+			// TODO Auto-generated method stub
+			throw new RuntimeException("Not Implemented");
+		}
         
     }
 

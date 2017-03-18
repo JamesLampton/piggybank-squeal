@@ -19,6 +19,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.IOException;
+
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.pig.ResourceSchema;
 import org.apache.pig.backend.executionengine.ExecException;
@@ -27,10 +28,11 @@ import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.StorageUtil;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+
 import backtype.storm.tuple.Values;
 
 public class PigSpoutWrapper extends SpoutWrapper {
@@ -53,22 +55,22 @@ public class PigSpoutWrapper extends SpoutWrapper {
 		return null;
 	}
 	
-	public Class<? extends BaseFunction> getTupleConverter() {
+	public Class<? extends IFunction> getTupleConverter() {
 		return MakePigTuples.class;
 	}
 	
-	static public class MakePigTuples extends BaseFunction {
+	static public class MakePigTuples implements IFunction {
 		Integer POS = new Integer(1);
 		Integer NEG = new Integer(-1);
 		private TupleFactory tf;
 		
 		@Override
-		public void prepare(java.util.Map conf, TridentOperationContext context) {
+		public void prepare(IRunContext context) {
 			 tf = TupleFactory.getInstance();
 		}
 			
 		@Override
-		public void execute(TridentTuple tuple, TridentCollector collector) {
+		public void execute(IFlexyTuple tuple, ICollector collector) {
 			byte[] buf;
 			try {
 				buf = DataType.toBytes(tuple.get(0));
@@ -79,6 +81,12 @@ public class PigSpoutWrapper extends SpoutWrapper {
 			Tuple t = StorageUtil.bytesToTuple(buf, 0, buf.length, (byte) '\t');			
 			
 			collector.emit(new Values(null, new NullableTuple(t), POS));
+		}
+
+		@Override
+		public void cleanup() {
+			// TODO Auto-generated method stub
+			
 		}
 
 	}

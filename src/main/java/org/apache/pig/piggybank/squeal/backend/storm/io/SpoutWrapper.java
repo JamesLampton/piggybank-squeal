@@ -47,6 +47,7 @@ import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.logicalLayer.schema.Schema;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
 import org.apache.pig.piggybank.squeal.flexy.oper.MakePigTuples;
 import org.joda.time.DateTime;
 import org.mortbay.util.ajax.JSON;
@@ -256,7 +257,7 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 		return conv.bytesToBigDecimal(b);
 	}
 
-	public Class<? extends BaseFunction> getTupleConverter() {
+	public Class<? extends IFunction> getTupleConverter() {
 		return MakePigTuples.class;
 	}
 

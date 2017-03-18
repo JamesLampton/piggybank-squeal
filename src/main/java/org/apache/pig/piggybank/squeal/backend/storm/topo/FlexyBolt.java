@@ -32,9 +32,10 @@ import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
 import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FlexyTupleFactory;
 import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
-import org.apache.pig.piggybank.squeal.flexy.executors.ISpoutWaitStrategy;
 import org.apache.pig.piggybank.squeal.flexy.executors.PipelineExecutor;
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
@@ -42,6 +43,7 @@ import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
+import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseRichBolt;
 import backtype.storm.tuple.Fields;
@@ -78,19 +80,19 @@ public class FlexyBolt extends BaseRichBolt {
 	
 	class BoltRunContext implements IRunContext {
 		
-		public BoltRunContext() {
-			// Pull the spout wait strategy and initialize it.
-			if (context.get("topology.spout.wait.strategy") != null) {
-				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
-				try {
-					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
-					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
-					waitStrategy.prepare(stormConf);
-				} catch (Exception e) {
-					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
-				}
-
-			}
+		public BoltRunContext(Map stormConf, TopologyContext context) {
+//			// Pull the spout wait strategy and initialize it.
+//			if (context.get("topology.spout.wait.strategy") != null) {
+//				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
+//				try {
+//					Class<?> klass = ClassLoader.getSystemClassLoader().loadClass(klassName);
+//					waitStrategy = (ISpoutWaitStrategy) klass.newInstance();
+//					waitStrategy.prepare(stormConf);
+//				} catch (Exception e) {
+//					throw new RuntimeException("Unable to instantiate the wait strategy: " + klassName, e);
+//				}
+//
+//			}
 		}
 
 		@Override
@@ -124,7 +126,43 @@ public class FlexyBolt extends BaseRichBolt {
 		}
 
 		@Override
-		public Object get(String cacheSizeConf) {
+		public Object get(String propertyKey) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public String getExposedName(FStream cur) {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public Map getStormConf() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public FFields getInputSchema() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public void runWaitStrategy(int emptyStreak) {
+			// TODO Auto-generated method stub
+			
+		}
+
+		@Override
+		public TopologyContext getStormTopologyContext() {
+			// TODO Auto-generated method stub
+			return null;
+		}
+
+		@Override
+		public WorkerTopologyContext getWorkerTopologyContext() {
 			// TODO Auto-generated method stub
 			return null;
 		}
@@ -138,6 +176,12 @@ public class FlexyBolt extends BaseRichBolt {
 		public BoltCollector(OutputCollector collector) {
 			this.collector = collector;
 		}
+
+		@Override
+		public void emit(String exposedName, Tuple anchor, Values values) {
+			// TODO Auto-generated method stub
+			
+		}
 		
 	}
 
@@ -146,7 +190,7 @@ public class FlexyBolt extends BaseRichBolt {
 		// Create the execution pipeline.
 		pipeline = PipelineExecutor.build(root, G);
 		
-		this.runContext = new BoltRunContext();
+		this.runContext = new BoltRunContext(stormConf, context);
 		
 		pipeline.prepare(runContext, new BoltCollector(collector));
 		
@@ -179,7 +223,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 			// Determine the input type.
 			if (input.getSourceStreamId().equals("commit")) {
-				if (pipeline.commit(input)) {
+				if (pipeline.commit(input.getLong(0))) {
 					coord_type = 3; // commit success
 				} else {
 					coord_type = 4; // commit fail
@@ -220,7 +264,7 @@ public class FlexyBolt extends BaseRichBolt {
 					// Release the remaining tuples.
 					pipeline.flush(input);
 					if (coord_type > 1) {
-						pipeline.commit(input);
+						pipeline.commit(input.getLong(0));
 					}
 
 					// Send coord messages.
@@ -229,7 +273,7 @@ public class FlexyBolt extends BaseRichBolt {
 				}
 			} else {
 				// Execute the assembly.
-				send_coord = pipeline.execute(input);
+				send_coord = pipeline.execute(FlexyTupleFactory.newTuple(input.getFields().toList(), input.getValues()));
 				if (send_coord) {
 					pipeline.flush(input);
 				}

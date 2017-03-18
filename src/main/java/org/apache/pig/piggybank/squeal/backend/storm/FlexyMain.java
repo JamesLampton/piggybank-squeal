@@ -59,12 +59,16 @@ import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
+import org.apache.pig.piggybank.squeal.backend.storm.state.TridentStateWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyMasterSpout;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.components.ISource;
+import org.apache.pig.piggybank.squeal.flexy.components.SourceOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper;
 import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist;
@@ -180,8 +184,8 @@ public class FlexyMain extends Main {
 					output = input.each(
 							input.getOutputFields(),
 							new MapFunc(pc, clonePlan, sop.mapKeyType, sop.getIsCombined(), cloneActiveRoot, leaves.contains(sop), sop.name()),
-							output_fields
-							).project(output_fields);
+							new FFields(output_fields.toList())
+							).project(new FFields(output_fields.toList()));
 					outputs.add(output);
 
 					if (sop.getParallelismHint() != 0) {
@@ -219,11 +223,36 @@ public class FlexyMain extends Main {
 			public IComponent getSpout() {
 				return s;
 			}
+
+			@Override
+			public void fail(Object msgId) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void ack(Object msgId) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void open(IRunContext context,
+					SourceOutputCollector sourceOutputCollector) {
+				// TODO Auto-generated method stub
+				
+			}
+
+			@Override
+			public void nextTuple() {
+				// TODO Auto-generated method stub
+				
+			}
 		}
 		
 		public void visitSOp(StormOper sop) throws VisitorException {
 			List<FStream> outputs = new ArrayList<FStream>();
-			Fields output_fields = sop.getOutputFields();
+			FFields output_fields = new FFields(sop.getOutputFields().toList());
 			
 			if (sop.getType() == StormOper.OpType.SPOUT) {
 				// Wrap the spout to address STORM-368
@@ -301,8 +330,8 @@ public class FlexyMain extends Main {
 					agg_fact = new CombineWrapper.Factory(new CombinePersist(pack, sop.getPlan(), sop.mapKeyType));
 				}
 				
-				Fields orig_input_fields = inputs.get(0).getOutputFields();
-				Fields group_key = new Fields(orig_input_fields.get(0) + "_raw");
+				FFields orig_input_fields = inputs.get(0).getOutputFields();
+				FFields group_key = new FFields(orig_input_fields.get(0) + "_raw");
 				
 				for (FStream input : inputs) {						
 //					System.out.println("Setting output name: " + sop.name());
@@ -310,7 +339,7 @@ public class FlexyMain extends Main {
 
 					// We need to encode the key into a value (sans index) to group properly.
 					input = input.each(
-								new Fields(input.getOutputFields().get(0)),
+								new FFields(input.getOutputFields().get(0)),
 								new MapFunc.MakeKeyRawValue(),
 								group_key
 							);
@@ -332,7 +361,7 @@ public class FlexyMain extends Main {
 						agg_fact.getStage1Aggregator(), 
 						agg_fact.getStage2Aggregator(), 
 						agg_fact.getStoreAggregator(),
-						sop.getStateFactory(pc),
+						new TridentStateWrapper(sop.getStateFactory(pc)),
 						output_fields);
 				
 				if (sop.getParallelismHint() > 0) {
@@ -346,11 +375,11 @@ public class FlexyMain extends Main {
 				output = output.each(
 							group_key,
 							new MapFunc.Copy(),
-							new Fields(orig_input_fields.get(0))
+							new FFields(orig_input_fields.get(0))
 						);
 
 				// Strip down to the appropriate values
-				output = output.project(new Fields(orig_input_fields.get(0), output_fields.get(0)));
+				output = output.project(new FFields(orig_input_fields.get(0), output_fields.get(0)));
 //				output.each(output.getOutputFields(), new Debug());
 				
 				outputs.add(output);
@@ -434,14 +463,14 @@ public class FlexyMain extends Main {
 			String source_stream = source_b.getStreamName(edge.source);
 			
 			// Pull the schema of the input.
-			b.setInputSchema(edge.source.getOutputFields());
+			b.setInputSchema(new Fields(edge.source.getOutputFields().toList()));
 
 //			log.error("Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream);
 //			System.err.println("XXXXXXX -- Bolt:" + b + " source: " + source_name + " source_stream: " + source_stream + " --- " + b.getRoot().getType() + " " + b.getInputSchema());
 			if (b.getRoot().getType() == FStream.NodeType.SHUFFLE) {
 				b_builder.shuffleGrouping(source_name, source_stream);
 			} else if (b.getRoot().getType() == FStream.NodeType.GROUPBY) {
-				b_builder.fieldsGrouping(source_name, source_stream, b.getRoot().getGroupingFields());
+				b_builder.fieldsGrouping(source_name, source_stream, new Fields(b.getRoot().getGroupingFields().toList()));
 			}
 		}
 		

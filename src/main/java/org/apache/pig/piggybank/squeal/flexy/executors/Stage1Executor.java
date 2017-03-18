@@ -90,7 +90,7 @@ public class Stage1Executor<T> implements RemovalListener<Writable, T> {
 		this.expiry_ms = value;
 	}
 	
-	public void prepare(IRunContext context) {
+	public void prepare(IRunContext context, ICollector collector) {
 		// Create the state.
 		state = (IMapState<T>) sf.makeState(context);
 		

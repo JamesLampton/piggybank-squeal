@@ -50,6 +50,8 @@ import backtype.storm.tuple.Values;
 import backtype.storm.utils.Utils;
 
 public class Binner {
+	
+	// FIXME: Get rid of the Kryo stuff.  Use Hadoop's serialization directly.
 	public static final String WRITE_THRESH_CONF = "flexy.binner.write.threshold";
 	int _write_thresh = 64*1024;
 	private KryoValuesSerializer _ser;
@@ -69,7 +71,7 @@ public class Binner {
 	Map<Integer, OutCollector> bins = new HashMap<Integer, OutCollector>();	
 	private List<Grouper> groupings = new ArrayList<Grouper>();
 	
-	private OutputCollector collector;
+	private IOutputCollector collector;
 	private String exposedName;
 	private int taskId;
 	
@@ -100,13 +102,13 @@ public class Binner {
 			num_tasks = targetTasks.size();
 		}
 
-		public List<Integer> chooseTasks(int taskId, final TridentTuple tup) {
+		public List<Integer> chooseTasks(int taskId, final IFlexyTuple tup) {
 			if (gr.is_set_fields()) {
 				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
 			} else if (gr.is_set_shuffle()) {
 				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
 			} else if (wrapped != null) {
-				return wrapped.chooseTasks(taskId, tup);
+				return wrapped.chooseTasks(taskId, tup.getValues());
 			} else {
 				throw new RuntimeException("Unknown grouping type: " + gr.getSetField());
 			}
@@ -121,18 +123,18 @@ public class Binner {
 		taskId = context.getThisTaskId();
 		
 		// Determine the downstream subscribers.
-		for (Entry<String, Grouping> ent : context.getThisTargets().get(exposedName).entrySet()) {
+		for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {
 			Grouper gr = new Grouper(ent.getValue());
-			gr.prepare(context, new GlobalStreamId(context.getThisComponentId(), exposedName), 
-					context.getComponentTasks(ent.getKey()));
+			gr.prepare(context.getWorkerTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
+					context.getStormTopologyContext().getComponentTasks(ent.getKey()));
 			groupings.add(gr);
 		}
 		
 		// Grab Kryo instances.
-		_ser = new KryoValuesSerializer(stormConf);
+		_ser = new KryoValuesSerializer(context.getStormConf());
 		
 		// Pull any configuration overrides.
-		Number conf_int = (Number) stormConf.get(WRITE_THRESH_CONF);
+		Number conf_int = (Number) context.get(WRITE_THRESH_CONF);
 		if (conf_int != null) _write_thresh = conf_int.intValue(); 
 	}
 
@@ -148,7 +150,7 @@ public class Binner {
 				}
 
 				// write the data out.
-				_ser.serializeInto(tup, curOut.out);
+				_ser.serializeInto(tup.getValues(), curOut.out);
 
 				// Determine if we need to flush this buffer
 				if (curOut.out.position() > _write_thresh) {
@@ -159,9 +161,9 @@ public class Binner {
 		}
 	}
 
-	private void _flush(OutCollector curOut, Tuple anchor) {
+	private void _flush(OutCollector curOut, Object anchor) {
 		// Emit curOut.
-		collector.emit(exposedName, anchor, new Values(curOut.aKey, curOut.out.toBytes()));
+		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, curOut.out.toBytes()));
 	}
 	
 	public void flush(Object inputAnchor) {

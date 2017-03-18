@@ -13,7 +13,11 @@ import backtype.storm.tuple.Fields;
 
 public class FFields {
 
-	public FFields(String string) {
+	public FFields(String... fields) {
+		// TODO Auto-generated constructor stub
+	}
+
+	public FFields(List<String> list) {
 		// TODO Auto-generated constructor stub
 	}
 
@@ -55,5 +59,8 @@ public class FFields {
 		// TODO Auto-generated method stub
 		return null;
 	}
-
+	
+	public List<String> toList() {
+		return null;
+	}
 }

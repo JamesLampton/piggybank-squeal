@@ -25,6 +25,11 @@ import org.apache.pig.backend.executionengine.ExecException;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.POStatus;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
+import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
+import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FlexyTupleFactory;
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 import org.apache.pig.piggybank.squeal.flexy.oper.CombineWrapper;
 import org.apache.pig.piggybank.squeal.flexy.oper.BasicPersist;
 import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
@@ -47,8 +52,8 @@ public class TridentStatePack extends POPackage {
 	private StateFactory stateFactory;
 	boolean initialized = false;
 	MapState s;
-	CombinerAggregator agg;
-	TridentTupleView.FreshOutputFactory tFactory;
+	ICombinerAggregator agg;
+	FlexyTupleFactory tFactory;
 	private String windowOpts;
 	private TupleFactory tf;
 	private final static Integer POS = 1;
@@ -70,7 +75,7 @@ public class TridentStatePack extends POPackage {
 			} else {
 				agg = new CombineWrapper(new WindowCombinePersist(windowOpts));
 			}
-			tFactory = new TridentTupleView.FreshOutputFactory(new Fields("k", "v", "s"));
+			tFactory = FlexyTupleFactory.newFreshOutputFactory(new FFields("k", "v", "s"));
 			tf = TupleFactory.getInstance();
 			
 			System.out.println("TridentStatePack.attachInput initialized state: " + stateFactory + " agg: " + agg + " windowOpts: " + windowOpts);
@@ -87,7 +92,7 @@ public class TridentStatePack extends POPackage {
 			t.setIndex(ref.getIndex());
 			
 			// Create a trident tuple.
-			TridentTuple triTuple = tFactory.create(new Values(k, t, POS));
+			IFlexyTuple triTuple = tFactory.create(new FValues(k, t, POS));
 			
 			// Initialize the current tuple t.
 			Object t_init = agg.init(triTuple);

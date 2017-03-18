@@ -28,15 +28,15 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
-import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
 import org.apache.pig.piggybank.squeal.binner.Binner;
 import org.apache.pig.piggybank.squeal.binner.Binner.BinDecoder;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
-import org.apache.pig.piggybank.squeal.flexy.components.FlexyTupleFactory;
 import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.SourceOutputCollector;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FlexyTupleFactory;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 import org.jgrapht.graph.DefaultDirectedGraph;
@@ -46,8 +46,6 @@ import com.esotericsoftware.kryo.io.Input;
 public class PipelineExecutor implements ICollector {
 	private FStream cur;
 	private List<PipelineExecutor> children;
-	//	private OutputCollector collector;  TODO: Remove this.
-	//	private TridentTuple.Factory output_tf;
 	private IRunContext context;
 	private static final Log log = LogFactory.getLog(PipelineExecutor.class);
 
@@ -95,43 +93,38 @@ public class PipelineExecutor implements ICollector {
 
 		binDecoder = new Binner.BinDecoder(context);
 
-		// Stash this for use later.  TODO: Remove this.
-		//		this.collector = collector;
-
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
 //			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
 			parent_tf = parent_root_tf = FlexyTupleFactory.newFreshOutputFactory(context.getInputSchema());
 		}
 
-		TridentOperationContext triContext = new TridentOperationContext(context, parent_tf);
-
-		TridentTuple.Factory output_tf;
+		FlexyTupleFactory output_tf;
 		// Create an output tuple factory.
 		switch (cur.getType()) {
 		case FUNCTION:
-			cur.getFunc().prepare(stormConf, triContext);
+			cur.getFunc().prepare(context);
 			// Create a projection for the input.
-			proj_output_tf = triContext.makeProjectionFactory(cur.getInputFields());
-			op_output_tf = new TridentTupleView.OperationOutputFactory(parent_tf, cur.getAppendOutputFields());
+			proj_output_tf = FlexyTupleFactory.newProjectionFactory(cur.getInputFields());
+			op_output_tf = FlexyTupleFactory.newOperationOutputFactory(parent_tf, cur.getAppendOutputFields());
 			output_tf = op_output_tf;
 			break;
 		case GROUPBY:
-			proj_output_tf = triContext.makeProjectionFactory(cur.getInputFields());
-			root_output_tf = new TridentTupleView.FreshOutputFactory(cur.getOutputFields());
+			proj_output_tf = FlexyTupleFactory.newProjectionFactory(cur.getInputFields());
+			root_output_tf = FlexyTupleFactory.newFreshOutputFactory(cur.getOutputFields());
 			output_tf = root_output_tf;
 
 			// Prepare the agg stuff.
 			if (cur.getIsStage0Agg()) {
 				this.stage0Exec = new Stage0Executor(cur.getStage0Agg());
-				stage0Exec.prepare(stormConf, context, this);
+				stage0Exec.prepare(context, this);
 			} else {
 				this.stage1Exec = new Stage1Executor(cur.getStage1Agg(), cur.getStorageAgg(), cur.getStateFactory());
-				stage1Exec.prepare(stormConf, context, this);
+				stage1Exec.prepare(context, this);
 			}
 
 			break;
 		case PROJECTION:
-			proj_output_tf = triContext.makeProjectionFactory(cur.getAppendOutputFields());
+			proj_output_tf = FlexyTupleFactory.newProjectionFactory(cur.getAppendOutputFields());
 			output_tf = proj_output_tf;
 			break;
 		case SPOUT:
@@ -140,14 +133,14 @@ public class PipelineExecutor implements ICollector {
 			maxBatchSize = batchSize.intValue();
 
 			// Prepare the spout
-			cur.getSource().open(context, new SpoutOutputCollector(_collector));
+			cur.getSource().open(context, new SourceOutputCollector(_collector));
 
 			root_output_tf = FlexyTupleFactory.newFreshOutputFactory(cur.getAppendOutputFields());
 			output_tf = root_output_tf;
 			
 			break;
 		case SHUFFLE:
-			// Do thinging, we'll pass directly to children later.
+			// Do nothing, we'll pass directly to children later.
 			output_tf = null;
 			break;
 		default:
@@ -259,7 +252,7 @@ public class PipelineExecutor implements ICollector {
 		}
 	}
 
-	public boolean execute(Tuple input) {
+	public boolean execute(IFlexyTuple input) {
 		//		log.info("execute tuple: " + input);
 		boolean ret = false;
 
@@ -312,7 +305,7 @@ public class PipelineExecutor implements ICollector {
 				Exception spoutException = null;
 				for(int i=0; i < maxBatchSize; i++) {
 					try {
-						cur.getSpout().nextTuple();
+						cur.getSource().nextTuple();
 					} catch (Exception e) {
 						// Delay this until we have added the emitted ids to the idsMap.
 						spoutException = e;
@@ -383,8 +376,6 @@ public class PipelineExecutor implements ICollector {
 
 		// Emit if necessary.
 		if (exposedName != null) {
-			//			log.info("EMIT:" + tup);
-			//			TODO remove: this.collector.emit(exposedName, tup);
 			try {
 				binner.emit(tup, anchor);
 			} catch (IOException e) {

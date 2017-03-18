@@ -10,4 +10,8 @@ public interface ISource {
 
 	void ack(Object msgId);
 
+	void open(IRunContext context, SourceOutputCollector sourceOutputCollector);
+
+	void nextTuple();
+
 }

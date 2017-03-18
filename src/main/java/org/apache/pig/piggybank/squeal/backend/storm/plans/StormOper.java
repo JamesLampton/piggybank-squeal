@@ -20,6 +20,7 @@ package org.apache.pig.piggybank.squeal.backend.storm.plans;
 
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper;
+import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.Operator;
 import org.apache.pig.impl.plan.OperatorKey;
@@ -147,13 +148,13 @@ public class StormOper extends Operator<SOpPlanVisitor> {
 		return pc.getProperties().getProperty(alias + "_window_opts");
 	}
 
-	public void setTupleConverter(Class<? extends BaseFunction> tupleConverter) {
+	public void setTupleConverter(Class<? extends IFunction> tupleConverter) {
 		this.tupleConverterKlass = tupleConverter.getName();
 	}
 
-	public Function getTupleConverter() {
+	public IFunction getTupleConverter() {
 		try {
-			return (Function) Class.forName(this.tupleConverterKlass).newInstance();
+			return (IFunction) Class.forName(this.tupleConverterKlass).newInstance();
 		} catch (Exception e) {
 			throw new RuntimeException(e);
 		}

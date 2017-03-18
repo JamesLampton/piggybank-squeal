@@ -5,6 +5,9 @@ import java.util.Map;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 
+import backtype.storm.task.TopologyContext;
+import backtype.storm.task.WorkerTopologyContext;
+
 public interface IRunContext {
 
 	int getThisTaskId();
@@ -22,6 +25,9 @@ public interface IRunContext {
 	String getExposedName(FStream cur);
 
 	Map getStormConf();
+	
+	TopologyContext getStormTopologyContext();
+	WorkerTopologyContext getWorkerTopologyContext();
 
 	FFields getInputSchema();
 
