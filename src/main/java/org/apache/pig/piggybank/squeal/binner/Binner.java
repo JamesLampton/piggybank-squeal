@@ -31,6 +31,7 @@ import org.apache.commons.logging.LogFactory;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
@@ -80,7 +81,7 @@ public class Binner {
 		private Grouping gr;
 		private CustomStreamGrouping wrapped;
 		private List<Integer> targetTasks;
-		private Fields gr_fields;
+		private FFields gr_fields;
 		private int num_tasks;
 		Random r = new Random();
 
@@ -92,7 +93,7 @@ public class Binner {
 				GlobalStreamId stream, List<Integer> targetTasks) {
 			
 			if (gr.is_set_fields()) {
-				gr_fields = new Fields(gr.get_fields());
+				gr_fields = new FFields(gr.get_fields());
 			} else if (gr.is_set_custom_serialized()) {
 				wrapped = (CustomStreamGrouping) Utils.deserialize(gr.get_custom_serialized());
 				wrapped.prepare(context, stream, targetTasks);

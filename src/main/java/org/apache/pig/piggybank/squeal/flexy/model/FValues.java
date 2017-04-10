@@ -19,12 +19,13 @@
 package org.apache.pig.piggybank.squeal.flexy.model;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class FValues extends ArrayList {
 
 	public FValues(Object... objects) {
-		// TODO Auto-generated constructor stub with exception
-		throw new RuntimeException("Not implemented");
+		// FIXME: Factor this utility away.
+		super(Arrays.asList(objects));
 	}
 
 }

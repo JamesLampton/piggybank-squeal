@@ -74,6 +74,7 @@ public class FlexyBolt extends BaseRichBolt {
 	Map<Integer, Long> _c0_queue_acc = new HashMap<Integer, Long>();
 	Map<Integer, Long> _c0_c1_diff_acc = new HashMap<Integer, Long>();
 	private BoltRunContext runContext;
+	private FlexyTupleFactory tFactory;
 
 	public FlexyBolt(int bolt_id, FStream root) {
 		this.bolt_id = bolt_id;
@@ -270,8 +271,13 @@ public class FlexyBolt extends BaseRichBolt {
 					seenCoord = 0;
 				}
 			} else {
+				if (tFactory == null) {
+					// FIXME: Should we know this in prepare or the like?
+					tFactory = FlexyTupleFactory.newFreshOutputFactory(new FFields(input.getFields().toList()));
+				}
+				
 				// Execute the assembly.
-				send_coord = pipeline.execute(FlexyTupleFactory.newTuple(input.getFields().toList(), input.getValues()));
+				send_coord = pipeline.execute(tFactory.create(input.getValues()));
 				if (send_coord) {
 					pipeline.flush(input);
 				}
