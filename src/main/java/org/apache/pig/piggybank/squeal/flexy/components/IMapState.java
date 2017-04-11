@@ -20,12 +20,9 @@ package org.apache.pig.piggybank.squeal.flexy.components;
 
 import java.util.List;
 
-import storm.trident.state.ValueUpdater;
-
 public interface IMapState<T> {
     // certain states might only accept one-tuple keys - those should just throw an error 
     List<T> multiGet(List<List<Object>> keys);
-    List<T> multiUpdate(List<List<Object>> keys, List<ValueUpdater> updaters);
     void multiPut(List<List<Object>> keys, List<T> vals);
 	void commit(long txid);
 }

@@ -35,12 +35,7 @@ import org.apache.pig.piggybank.squeal.flexy.components.ICollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
-
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.TridentCollector;
-import storm.trident.operation.TridentOperationContext;
-import storm.trident.tuple.TridentTuple;
-import backtype.storm.tuple.Values;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
 public class SignedPigSpoutWrapper extends SpoutWrapper {
 	
@@ -97,7 +92,7 @@ public class SignedPigSpoutWrapper extends SpoutWrapper {
 			sign = Integer.parseInt(dba.toString().replace("\n", ""));
 			t = tf.newTupleNoCopy(lst);
 			
-			collector.emit(new Values(null, new NullableTuple(t), sign));
+			collector.emit(new FValues(null, new NullableTuple(t), sign));
 		}
 
 		@Override

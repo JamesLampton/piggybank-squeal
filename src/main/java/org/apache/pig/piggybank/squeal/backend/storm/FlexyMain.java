@@ -18,19 +18,12 @@
 
 package org.apache.pig.piggybank.squeal.backend.storm;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.ObjectInputStream;
-import java.io.PrintStream;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.apache.commons.logging.Log;
@@ -40,35 +33,20 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.Physica
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POLoad;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
 import org.apache.pig.impl.PigContext;
-import org.apache.pig.impl.io.NullableBag;
-import org.apache.pig.impl.io.NullableBooleanWritable;
-import org.apache.pig.impl.io.NullableBytesWritable;
-import org.apache.pig.impl.io.NullableDoubleWritable;
-import org.apache.pig.impl.io.NullableFloatWritable;
-import org.apache.pig.impl.io.NullableIntWritable;
-import org.apache.pig.impl.io.NullableLongWritable;
-import org.apache.pig.impl.io.NullableText;
-import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.plan.DependencyOrderWalker;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.MultiMap;
 import org.apache.pig.impl.util.ObjectSerializer;
-import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutSource;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapperUtils.LimitedOutstandingInvocationHandler;
-import org.apache.pig.piggybank.squeal.backend.storm.io.WritableKryoSerializer;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
-import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.TridentStateWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyMasterSpout;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
-import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
-import org.apache.pig.piggybank.squeal.flexy.components.ISource;
-import org.apache.pig.piggybank.squeal.flexy.components.SourceOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.executors.FlexyTracer;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
@@ -80,28 +58,12 @@ import org.apache.pig.piggybank.squeal.flexy.oper.Reduce;
 import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
-import org.yaml.snakeyaml.Yaml;
-
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
-import backtype.storm.StormSubmitter;
-import backtype.storm.generated.AlreadyAliveException;
-import backtype.storm.generated.Bolt;
-import backtype.storm.generated.InvalidTopologyException;
-import backtype.storm.generated.SpoutSpec;
 import backtype.storm.generated.StormTopology;
-import backtype.storm.generated.StreamInfo;
 import backtype.storm.topology.BoltDeclarer;
-import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichSpout;
-import backtype.storm.topology.OutputFieldsGetter;
 import backtype.storm.tuple.Fields;
-import backtype.storm.utils.Utils;
-import storm.trident.operation.BaseFilter;
-import storm.trident.tuple.TridentTuple;
-import storm.trident.util.TridentUtils;
 import backtype.storm.topology.TopologyBuilder;
-
 
 public class FlexyMain extends Main {
 	

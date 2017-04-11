@@ -56,11 +56,6 @@ public class TridentStateWrapper implements IStateFactory, Serializable {
 		}
 
 		@Override
-		public List multiUpdate(List keys, List updaters) {
-			return wrapped.multiUpdate(keys, updaters);
-		}
-
-		@Override
 		public void multiPut(List keys, List vals) {
 			wrapped.multiPut(keys, vals);
 		}

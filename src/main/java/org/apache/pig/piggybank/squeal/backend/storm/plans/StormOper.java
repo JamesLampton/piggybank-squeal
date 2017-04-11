@@ -28,8 +28,6 @@ import org.apache.pig.impl.plan.VisitorException;
 
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
-import storm.trident.operation.BaseFunction;
-import storm.trident.operation.Function;
 import storm.trident.state.StateFactory;
 
 public class StormOper extends Operator<SOpPlanVisitor> {

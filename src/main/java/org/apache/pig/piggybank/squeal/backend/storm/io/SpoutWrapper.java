@@ -52,7 +52,6 @@ import org.apache.pig.piggybank.squeal.flexy.oper.MakePigTuples;
 import org.joda.time.DateTime;
 import org.mortbay.util.ajax.JSON;
 
-import storm.trident.operation.BaseFunction;
 import backtype.storm.generated.StreamInfo;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsGetter;

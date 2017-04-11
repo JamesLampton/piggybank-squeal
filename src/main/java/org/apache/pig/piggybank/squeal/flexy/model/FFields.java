@@ -25,7 +25,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-// This is a shadow of the functionality from Storm's Fields and some TridentUtils
+// This is a shadow of the functionality from Storm's Fields and some Tri dentUtils
 //import backtype.storm.tuple.Fields;
 
 public class FFields implements Serializable {

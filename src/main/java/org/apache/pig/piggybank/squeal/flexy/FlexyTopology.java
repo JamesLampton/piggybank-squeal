@@ -47,7 +47,7 @@ public class FlexyTopology {
 	private DefaultDirectedGraph<FlexyBolt, IndexedEdge<FStream>> boltG;
 	private static final Log log = LogFactory.getLog(FlexyTopology.class);
 	
-	// from storm.trident.util
+	// from storm.tri dent.util
 	static public class ErrorEdgeFactory implements EdgeFactory, Serializable {
 	    @Override
 	    public Object createEdge(Object v, Object v1) {
@@ -55,7 +55,7 @@ public class FlexyTopology {
 	    }        
 	}
 	
-	// from storm.trident.util
+	// from storm.tri dent.util
 	static public class IndexedEdge<T> implements Comparable, Serializable {
 	    public T source;
 	    public T target;

@@ -103,13 +103,13 @@ public class TestStream extends SquealTestBase {
 ////    	pig.registerQuery("words_sl3_2 = JOIN words_sl3 BY word, stoplist3 BY stopword;");
 //    	
 ////    	explain("words_simple_join");
-////    	props.setProperty("words_sl3_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+////    	props.setProperty("words_sl3_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
 //
-////    	String redis_store_opts = "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}";
+////    	String redis_store_opts = "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}";
 ////    	props.setProperty("words_sl3_store_opts", "{\"StateFactory\":\"org.apache.pig.backend.storm.state.MultiState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"default\": {}, "+
 ////    			"\"1\": " + redis_store_opts + " }]}");
 //    	
-////    	props.setProperty("words_sl3_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+////    	props.setProperty("words_sl3_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 3, \"serializer\":\"org.apache.pig.backend.storm.state.GZPigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
 ////    	props.setProperty("words_sl3_window_opts", "{\"0\":2}");
 ////    	explain("words_sl3_fe");
 ////    	registerStore("words_sl3", output);
@@ -148,13 +148,13 @@ public class TestStream extends SquealTestBase {
     	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
     	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
 
-//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 1, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 1, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
     	pig.registerQuery("count_gr = GROUP x BY word;");
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
     	
 //    	registerStore("count", output, true);
     	
-//    	props.setProperty("hist_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 2, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+//    	props.setProperty("hist_gr_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 2, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
     	pig.registerQuery("hist_gr = GROUP count BY wc;");
     	pig.registerQuery("hist = FOREACH hist_gr GENERATE group AS wc, COUNT(count) AS freq;");
     	pig.registerQuery("hist = FILTER hist BY freq > 0;");
@@ -195,7 +195,7 @@ DEBUG: (6,2,1)
     	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
     	pig.registerQuery("x = FILTER x BY word == 'the';");
     	props.setProperty("count_gr_window_opts", "{\"0\":2}");
-//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 0, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 0, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
     	pig.registerQuery("count_gr = GROUP x BY word;");
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
 //    	pig.registerQuery("count = FILTER count by wc > 0"); // FIXME: BUGGG!!!! necessary due to issue with combiner handling oddity.
@@ -241,7 +241,7 @@ DEBUG: (6,2,1)
     	pig.registerQuery("x = FOREACH x GENERATE FLATTEN(TOKENIZE(sentence));");
     	pig.registerQuery("x = FOREACH x GENERATE LOWER($0) AS word;");
 
-//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"edu.umd.estuary.storm.trident.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 1, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
+//    	props.setProperty("count_gr_store_opts", "{\"StateFactory\":\"org.apache.pig.piggybank.squeal.state.RedisState\", \"StaticMethod\": \"fromJSONArgs\", \"args\": [{\"servers\": \"localhost\", \"dbNum\": 1, \"expiration\": 300, \"serializer\":\"org.apache.pig.backend.storm.state.PigSerializer\", \"key_serializer\":\"org.apache.pig.backend.storm.state.PigTextSerializer\"}]}");
     	pig.registerQuery("count_gr = GROUP x BY word;");
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
     	

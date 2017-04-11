@@ -66,7 +66,7 @@ public class SpoutSource implements ISource, Serializable {
 
 	@Override
 	public FFields getOutputFields() {
-		// storm.trident.util.TridentUtils
+		// storm.trident.util.Tri dentUtils
 		//			public static Fields getSingleOutputStreamFields(IComponent component) {
 		OutputFieldsGetter getter = new OutputFieldsGetter();
 		s.declareOutputFields(getter);
