@@ -23,6 +23,7 @@ import java.util.Map;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 
+import backtype.storm.task.IMetricsContext;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.task.WorkerTopologyContext;
 
@@ -49,5 +50,9 @@ public interface IRunContext {
 	FFields getInputSchema();
 
 	void runWaitStrategy(int emptyStreak);
+
+	int getNumPartitions();
+	
+	IMetricsContext getMetricsContext();
 
 }

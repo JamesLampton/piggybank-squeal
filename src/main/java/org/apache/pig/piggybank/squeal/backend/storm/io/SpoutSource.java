@@ -27,6 +27,7 @@ import org.apache.pig.piggybank.squeal.flexy.components.SourceOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 
 import backtype.storm.generated.StreamInfo;
+import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsGetter;
@@ -44,27 +45,23 @@ public class SpoutSource implements ISource, Serializable {
 
 	@Override
 	public void fail(Object msgId) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		s.fail(msgId);
 	}
 
 	@Override
 	public void ack(Object msgId) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		s.ack(msgId);
 	}
 
 	@Override
 	public void open(IRunContext context,
 			SourceOutputCollector sourceOutputCollector) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		s.open(context.getStormConf(), context.getStormTopologyContext(), new SpoutOutputCollector(sourceOutputCollector.getOutputCollector()));
 	}
 
 	@Override
 	public void nextTuple() {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		s.nextTuple();
 	}
 
 	@Override
@@ -81,7 +78,6 @@ public class SpoutSource implements ISource, Serializable {
 		if(si.is_direct()) {
 			throw new RuntimeException("Flexy does not support direct streams");
 		}
-		return new FFields(si.get_output_fields());        
-
+		return new FFields(si.get_output_fields());
 	}
 }

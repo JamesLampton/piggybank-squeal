@@ -45,6 +45,7 @@ import storm.trident.tuple.TridentTupleView.FreshOutputFactory;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
 import backtype.storm.spout.ISpoutWaitStrategy;
+import backtype.storm.task.IMetricsContext;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
 import backtype.storm.task.WorkerTopologyContext;
@@ -94,9 +95,7 @@ public class FlexyBolt extends BaseRichBolt {
 			this.stormConf = stormConf;
 			this.topoContext = topoContext;
 			
-			System.err.println("getInputSchema: " + getInputSchema());
-			FreshOutputFactory parent_tf = new TridentTupleView.FreshOutputFactory(new Fields(getInputSchema().toList()));
-			triContext = new TridentOperationContext(topoContext, parent_tf);
+			triContext = new TridentOperationContext(topoContext, null);
 			
 			// Pull the spout wait strategy and initialize it.
 			if (stormConf.get("topology.spout.wait.strategy") != null) {
@@ -153,6 +152,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public FFields getInputSchema() {
+			System.err.println("context: " + this);
 			return input_fields;
 		}
 
@@ -166,6 +166,16 @@ public class FlexyBolt extends BaseRichBolt {
 		@Override
 		public TopologyContext getStormTopologyContext() {
 			return topoContext;
+		}
+
+		@Override
+		public int getNumPartitions() {
+			return topoContext.getComponentTasks(topoContext.getThisComponentId()).size();
+		}
+
+		@Override
+		public IMetricsContext getMetricsContext() {
+			return null;
 		}
 	}
 	

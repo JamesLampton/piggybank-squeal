@@ -19,12 +19,15 @@
 package org.apache.pig.piggybank.squeal.backend.storm.state;
 
 import java.io.Serializable;
+import java.util.List;
 
 import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
+import storm.trident.state.State;
 import storm.trident.state.StateFactory;
+import storm.trident.state.map.MapState;
 
 public class TridentStateWrapper implements IStateFactory, Serializable {
 
@@ -36,8 +39,37 @@ public class TridentStateWrapper implements IStateFactory, Serializable {
 
 	@Override
 	public IMapState makeState(IRunContext context) {
-		// TODO Auto-generated method stub with exception
-		throw new RuntimeException("Not implemented");
+		return new TridentMapWrapper((MapState) stateFactory.makeState(context.getStormConf(), context.getMetricsContext(), context.getPartitionIndex(), context.getNumPartitions()));
 	}
 
+	static class TridentMapWrapper implements IMapState {
+
+		private MapState wrapped;
+
+		public TridentMapWrapper(MapState mapState) {
+			wrapped = mapState;
+		}
+
+		@Override
+		public List multiGet(List keys) {
+			return wrapped.multiGet(keys);
+		}
+
+		@Override
+		public List multiUpdate(List keys, List updaters) {
+			return wrapped.multiUpdate(keys, updaters);
+		}
+
+		@Override
+		public void multiPut(List keys, List vals) {
+			wrapped.multiPut(keys, vals);
+		}
+
+		@Override
+		public void commit(long txid) {
+			wrapped.commit(txid);
+		}
+		
+	}
+	
 }

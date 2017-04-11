@@ -20,16 +20,20 @@ package org.apache.pig.piggybank.squeal.flexy.components;
 
 import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
 
+import backtype.storm.spout.ISpoutOutputCollector;
+
 //import org.apache.pig.piggybank.squeal.flexy.executors.SpoutOutputCollector;
 
 public class SourceOutputCollector {
 
-	public SourceOutputCollector(CaptureCollector _collector) {
-		// TODO Auto-generated constructor stub with exception
-		throw new RuntimeException("Not implemented");
-//		new SpoutOutputCollector(_collector)
-	}
-	
+	private CaptureCollector collector;
 
+	public SourceOutputCollector(CaptureCollector _collector) {
+		collector = _collector;
+	}
+
+	public ISpoutOutputCollector getOutputCollector() {
+		return collector;
+	}
 
 }

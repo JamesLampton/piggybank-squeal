@@ -316,14 +316,13 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
     
     public static class CaptureCollector implements ISpoutOutputCollector {
 
-        TridentCollector _collector;
+        ICollector _collector;
         public List<Object> ids;
         public int numEmitted;
         
         public void reset(TridentCollector c) {
-            _collector = c;
-            ids = new ArrayList<Object>();
-            numEmitted = 0;
+        	// TODO Auto-generated method stub with exception
+        	throw new RuntimeException("Not implemented");
         }
         
         @Override
@@ -341,12 +340,13 @@ public class ImprovedRichSpoutBatchExecutor implements ITridentSpout {
 
         @Override
         public void emitDirect(int task, String stream, List<Object> values, Object id) {
-            throw new UnsupportedOperationException("Trident does not support direct streams");
+            throw new UnsupportedOperationException("Flexy does not support direct streams");
         }
 
-		public void reset(ICollector pipelineExecutor) {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+		public void reset(ICollector c) {
+			 _collector = c;
+			 ids = new ArrayList<Object>();
+			 numEmitted = 0;
 		}
         
     }

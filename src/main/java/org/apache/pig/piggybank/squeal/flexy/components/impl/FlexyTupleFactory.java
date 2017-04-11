@@ -25,18 +25,46 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 
 public class FlexyTupleFactory {
 
+	static class FlexyTupleImplIter implements Iterator {
+
+		ArrayList<FlexyTupleImpl> stack = new ArrayList<FlexyTupleImpl>();
+		Iterator cur_iter = null;
+		
+		@Override
+		public boolean hasNext() {
+			
+			while (true) {
+				if (cur_iter == null) {
+					if (stack.isEmpty()) return false;
+					cur_iter = stack.remove(stack.size()).iterator();
+				}
+				
+				if (cur_iter.hasNext()) {
+					return true;
+				} else {
+					cur_iter = null;
+				}
+			}
+		}
+
+		@Override
+		public Object next() {
+			return cur_iter.next();
+		}
+		
+	}
+	
 	class FlexyTupleImpl implements IFlexyTuple {
 
 		private ArrayList<Object> values;
-		private IFlexyTuple parent;
+		private FlexyTupleImpl parent;
 
-		public FlexyTupleImpl(IFlexyTuple parent, List<Object> values) {
+		public FlexyTupleImpl(FlexyTupleImpl parent, List<Object> values) {
 			this.parent = parent;
 			this.values = new ArrayList<Object>(values);
 		}
@@ -50,11 +78,16 @@ public class FlexyTupleFactory {
 		public boolean contains(Object o) {
 			return values.contains(o) || (parent == null ? false : parent.contains(o));
 		}
-
+		
 		@Override
 		public Iterator iterator() {
-			// TODO Auto-generated method stub with exception
-			throw new RuntimeException("Not implemented");
+			FlexyTupleImplIter iter = new FlexyTupleImplIter();
+			
+			for (FlexyTupleImpl cur = this; cur != null; cur = cur.parent) {
+				iter.stack.add(cur);
+			}
+			
+			return iter;
 		}
 
 		@Override
@@ -208,7 +241,7 @@ public class FlexyTupleFactory {
 	}
 
 	public IFlexyTuple create(IFlexyTuple parent, List<Object> values) {
-		return new FlexyTupleImpl(parent, values);
+		return new FlexyTupleImpl((FlexyTupleImpl) parent, values);
 	}
 
 	public IFlexyTuple create(List<Object> values) {
