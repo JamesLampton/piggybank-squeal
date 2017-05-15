@@ -19,16 +19,8 @@
 package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.lang.reflect.Field;
-import java.util.List;
-
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.impl.PigContext;
-
-import com.sun.tools.attach.VirtualMachine;
-
-import storm.trident.operation.TridentOperationContext;
-import backtype.storm.messaging.netty.Client;
-import backtype.storm.task.TopologyContext;
 
 public class MonkeyPatch {
 	
@@ -71,15 +63,15 @@ public class MonkeyPatch {
 		}		
 	}
 	
-	public static TopologyContext getTopologyContext(TridentOperationContext tri_context) {
-		try {
-			Class<? extends TridentOperationContext> klazz = tri_context.getClass();
-			Field f_other_context = klazz.getDeclaredField("_topoContext");
-			f_other_context.setAccessible(true);;
-			return (TopologyContext) f_other_context.get(tri_context);
-		} catch (Exception e) {
-			throw new RuntimeException(e);
-		}
-	}
+//	public static TopologyContext getTopologyContext(TridentOperationContext tri_context) {
+//		try {
+//			Class<? extends TridentOperationContext> klazz = tri_context.getClass();
+//			Field f_other_context = klazz.getDeclaredField("_topoContext");
+//			f_other_context.setAccessible(true);;
+//			return (TopologyContext) f_other_context.get(tri_context);
+//		} catch (Exception e) {
+//			throw new RuntimeException(e);
+//		}
+//	}
 	
 }

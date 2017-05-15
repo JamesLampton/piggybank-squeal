@@ -38,7 +38,6 @@ import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
-import storm.trident.operation.TridentOperationContext;
 import backtype.storm.generated.GlobalStreamId;
 import backtype.storm.generated.Grouping;
 import backtype.storm.spout.ISpoutWaitStrategy;
@@ -85,14 +84,11 @@ public class FlexyBolt extends BaseRichBolt {
 		private Map stormConf;
 		private TopologyContext topoContext;
 		private ISpoutWaitStrategy waitStrategy = null;
-		private TridentOperationContext triContext;
 
 		public BoltRunContext(Map stormConf, TopologyContext topoContext) {
 			this.stormConf = stormConf;
 			this.topoContext = topoContext;
-			
-			triContext = new TridentOperationContext(topoContext, null);
-			
+						
 			// Pull the spout wait strategy and initialize it.
 			if (stormConf.get("topology.spout.wait.strategy") != null) {
 				String klassName = stormConf.get("topology.spout.wait.strategy").toString();
@@ -128,7 +124,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public int getPartitionIndex() {
-			return triContext.getPartitionIndex();
+			return topoContext.getThisTaskIndex();
 		}
 
 		@Override

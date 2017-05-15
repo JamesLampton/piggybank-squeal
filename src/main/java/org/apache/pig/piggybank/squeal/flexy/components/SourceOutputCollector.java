@@ -18,7 +18,7 @@
 
 package org.apache.pig.piggybank.squeal.flexy.components;
 
-import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
+import org.apache.pig.piggybank.squeal.backend.storm.io.CaptureCollector;
 
 import backtype.storm.spout.ISpoutOutputCollector;
 

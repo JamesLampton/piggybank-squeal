@@ -27,7 +27,7 @@ import java.util.Map;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.io.Writable;
-import org.apache.pig.piggybank.squeal.backend.storm.io.ImprovedRichSpoutBatchExecutor.CaptureCollector;
+import org.apache.pig.piggybank.squeal.backend.storm.io.CaptureCollector;
 import org.apache.pig.piggybank.squeal.binner.Binner;
 import org.apache.pig.piggybank.squeal.binner.Binner.BinDecoder;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;

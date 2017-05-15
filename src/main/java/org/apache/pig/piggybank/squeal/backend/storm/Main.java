@@ -90,8 +90,6 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import backtype.storm.utils.Utils;
-import storm.trident.operation.BaseFilter;
-import storm.trident.tuple.TridentTuple;
 
 public class Main {
 
@@ -129,22 +127,6 @@ public class Main {
 		// Decode the plan from the context.
 		splan = (SOperPlan) ObjectSerializer.deserialize(pc.getProperties().getProperty(StormLauncher.PLANKEY));
 		ft = setupFlexyTopology(pc);
-	}
-	
-	static class BetterDebug extends BaseFilter {
-
-		private String prepend;
-
-		public BetterDebug(String prepend) {
-			this.prepend = prepend;
-		}
-		
-		@Override
-		public boolean isKeep(TridentTuple tuple) {
-			System.out.println("DEBUG " + prepend + ":" + tuple.toString());
-	        return true;
-		}
-		
 	}
 	
 	class DepWalker extends SOpPlanVisitor {
