@@ -21,16 +21,15 @@ package org.apache.pig.piggybank.squeal.backend.storm.state;
 import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.backend.hadoop.HDataType;
 import org.apache.pig.impl.io.PigNullableWritable;
+import org.apache.pig.piggybank.squeal.flexy.components.ISerializer;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
-import backtype.storm.tuple.Values;
-
-import storm.trident.state.Serializer;
-
-public class PigSerializer implements Serializer {
+public class PigSerializer implements ISerializer {
 	
 	@Override
 	public byte[] serialize(Object o) {
@@ -38,8 +37,8 @@ public class PigSerializer implements Serializer {
 		DataOutputBuffer dbuf = new DataOutputBuffer();
 		
 		try {
-			if (o instanceof Values) {
-				Values objl = (Values) o;
+			if (o instanceof FValues) {
+				FValues objl = (FValues) o;
 				dbuf.writeByte(0);
 				// Write out the length.
 				dbuf.writeInt(objl.size());
@@ -76,7 +75,7 @@ public class PigSerializer implements Serializer {
 			if (write_type == 0) {
 				// Read the length.
 				int values_size = dis.readInt();
-				Values arr = new Values();
+				FValues arr = new FValues();
 				
 				for (int i = 0; i < values_size; i++) {
 					// First read the type

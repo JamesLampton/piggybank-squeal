@@ -18,36 +18,26 @@
 
 package org.apache.pig.piggybank.squeal.backend.storm.state;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.hadoop.io.DataOutputBuffer;
-import org.apache.hadoop.io.IntWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.pig.backend.hadoop.HDataType;
 import org.apache.pig.builtin.PigStreaming;
 import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
-import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.io.PigNullableWritable;
-import org.apache.pig.impl.util.StorageUtil;
-
-import backtype.storm.tuple.Values;
-
-import storm.trident.state.Serializer;
+import org.apache.pig.piggybank.squeal.flexy.components.ISerializer;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 
 /*
  * Good for key serialization for States, but don't use to store the value because
  * this mechanism looses the schema information!
  */
-public class PigTextSerializer implements Serializer<List<Object>> {
+public class PigTextSerializer implements ISerializer<List<Object>> {
 	
 	private PigStreaming ps;
 	private TupleFactory tf;
@@ -73,7 +63,7 @@ public class PigTextSerializer implements Serializer<List<Object>> {
 	@Override
 	public List<Object> deserialize(byte[] b) {
 		try {
-			Values v = new Values();			
+			FValues v = new FValues();			
 			for (Object o : ps.deserialize(b).getAll()) {
 				v.add(HDataType.getWritableComparableTypes(((Tuple)o).get(0), DataType.findType(o)));
 			}

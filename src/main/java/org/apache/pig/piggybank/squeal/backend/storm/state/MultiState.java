@@ -27,37 +27,35 @@ import java.util.Map.Entry;
 
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.impl.util.Pair;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
 import backtype.storm.task.IMetricsContext;
-import storm.trident.state.State;
-import storm.trident.state.StateFactory;
-import storm.trident.state.map.IBackingMap;
-import storm.trident.state.map.MapState;
-import storm.trident.state.map.NonTransactionalMap;
 
-public class MultiState implements IBackingMap<IPigIdxState> {
+public class MultiState implements IMapState<IPigIdxState> {
 
-	private MapState def_state;
-	private Map<Integer, MapState> idx_map;
-	private ArrayList<MapState> maps ;
+	private IMapState def_state;
+	private Map<Integer, IMapState> idx_map;
+	private ArrayList<IMapState> maps ;
 	List<Integer[]> bins;
 
-	private MultiState(MapState def_state, Map<Integer, MapState> idx_map, ArrayList<MapState> maps, ArrayList<Integer[]> bins_in) {
+	private MultiState(IMapState def_state, Map<Integer, IMapState> idx_map, ArrayList<IMapState> maps, ArrayList<Integer[]> bins_in) {
 		this.def_state = def_state;
 		this.idx_map = idx_map;
 		this.bins = bins_in;
 		this.maps = maps;
 	}
 	
-	public static StateFactory fromJSONArgs(HashMap args) {
+	public static IStateFactory fromJSONArgs(HashMap args) {
 		return new Factory(args);
 	}
 	
-	public static class Factory implements StateFactory, IUDFExposer {
+	public static class Factory implements IStateFactory, IUDFExposer {
 		Map<Integer, Integer> opts_map = new HashMap<Integer, Integer>();
-		StateFactory def_fact;
+		IStateFactory def_fact;
 		private ArrayList<Integer[]> bins_in;
-		private ArrayList<StateFactory> state_facts;
+		private ArrayList<IStateFactory> state_facts;
 		static final Integer[] dummy = new Integer[0];
 		
 		public String toString() {
@@ -67,13 +65,13 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		public Factory(HashMap args) {
 //			System.out.println("MultiState.Factory: " + args);
 			bins_in = new ArrayList<Integer[]>();
-			state_facts = new ArrayList<StateFactory>();
+			state_facts = new ArrayList<IStateFactory>();
 			
 			// Parse the args.
 			for (Object k : args.keySet()) {
 //				System.out.println("MultiState.Factory: " + k + " -> " + args.get(k));
 				Map opts = (Map) args.get(k);
-				StateFactory k_fact = StateWrapper.getStateFactoryFromArgs(
+				IStateFactory k_fact = StateWrapper.getStateFactoryFromArgs(
 						(String) opts.get("StateFactory"), 
 						(String) opts.get("StaticMethod"), 
 						(Object[]) opts.get("args"));
@@ -94,24 +92,25 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		}
 		
 		@Override
-		public State makeState(Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
-			MapState def_state = null;
+		public IMapState makeState(IRunContext context) {
+			//Map conf, IMetricsContext metrics, int partitionIndex, int numPartitions) {
+			IMapState def_state = null;
 			if (def_fact != null) {
-				def_state = (MapState) def_fact.makeState(conf, metrics, partitionIndex, numPartitions);
+				def_state = (IMapState) def_fact.makeState(context);
 			}
 			
-			Map<Integer, MapState> idx_map = new HashMap<Integer, MapState>();
+			Map<Integer, IMapState> idx_map = new HashMap<Integer, IMapState>();
 			
-			ArrayList<MapState> maps = new ArrayList<MapState>();
-			for (StateFactory sf : state_facts) {
-				maps.add((MapState) sf.makeState(conf, metrics, partitionIndex, numPartitions));
+			ArrayList<IMapState> maps = new ArrayList<IMapState>();
+			for (IStateFactory sf : state_facts) {
+				maps.add((IMapState) sf.makeState(context));
 			}
 
 			for (Entry<Integer, Integer> ent : opts_map.entrySet()) {
 				idx_map.put(ent.getKey(), maps.get(ent.getValue()));
 			}
 			
-			return NonTransactionalMap.build(new MultiState(def_state, idx_map, maps, bins_in));
+			return new MultiState(def_state, idx_map, maps, bins_in);
 		}
 		
 		@Override
@@ -119,7 +118,7 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 			List<String> udfs = new ArrayList<String>();
 			
 			// Add the wrapped UDFs
-			for (StateFactory sf : state_facts) {
+			for (IStateFactory sf : state_facts) {
 				udfs.add(sf.getClass().getName());
 				
 				// Recurse in if necessary.
@@ -149,7 +148,7 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		}
 		
 		// Cycle through the maps and merge things.
-		for (MapState m : maps) {
+		for (IMapState m : maps) {
 			List<IPigIdxState> cur = m.multiGet(keys);
 			for (int i = 0; i < cur.size(); i++) {
 				if (ret.get(i) == null) {
@@ -168,7 +167,7 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		// Yuck.
 		ArrayList<List<Object>> def_pair_k = new ArrayList<List<Object>>();
 		ArrayList<Writable> def_pair_v = new ArrayList<Writable>();
-		ArrayList<MapState> other_state = new ArrayList<MapState>();
+		ArrayList<IMapState> other_state = new ArrayList<IMapState>();
 		ArrayList<List<Object>> other_keys = new ArrayList<List<Object>>();
 		ArrayList<Writable> other_vals = new ArrayList<Writable>();
 		
@@ -194,5 +193,11 @@ public class MultiState implements IBackingMap<IPigIdxState> {
 		for (int i = 0; i < other_state.size(); i++) {
 			other_state.get(i).multiPut(other_keys, other_vals);
 		}
+	}
+
+	@Override
+	public void commit(long txid) {
+		// TODO Auto-generated method stub
+		
 	}
 }

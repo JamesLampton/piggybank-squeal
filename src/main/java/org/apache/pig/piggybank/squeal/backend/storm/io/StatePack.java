@@ -18,7 +18,6 @@
 
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
-import java.util.HashMap;
 import java.util.Iterator;
 
 import org.apache.pig.backend.executionengine.ExecException;
@@ -27,6 +26,9 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.Result;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POPackage;
 import org.apache.pig.piggybank.squeal.flexy.components.ICombinerAggregator;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FakeRunContext;
 import org.apache.pig.piggybank.squeal.flexy.components.impl.FlexyTupleFactory;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 import org.apache.pig.piggybank.squeal.flexy.model.FValues;
@@ -39,26 +41,18 @@ import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.io.PigNullableWritable;
 import org.apache.pig.impl.plan.OperatorKey;
 
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
-import storm.trident.operation.CombinerAggregator;
-import storm.trident.state.StateFactory;
-import storm.trident.state.map.MapState;
-import storm.trident.tuple.TridentTuple;
-import storm.trident.tuple.TridentTupleView;
+public class StatePack extends POPackage {
 
-public class TridentStatePack extends POPackage {
-
-	private StateFactory stateFactory;
+	private IStateFactory stateFactory;
 	boolean initialized = false;
-	MapState s;
+	IMapState s;
 	ICombinerAggregator agg;
 	FlexyTupleFactory tFactory;
 	private String windowOpts;
 	private TupleFactory tf;
 	private final static Integer POS = 1;
 	
-	public TridentStatePack(OperatorKey k, StateFactory stateFactory, String windowOpts) {
+	public StatePack(OperatorKey k, IStateFactory stateFactory, String windowOpts) {
 		super(k);
 		this.stateFactory = stateFactory;
 		this.windowOpts = windowOpts;
@@ -68,7 +62,7 @@ public class TridentStatePack extends POPackage {
 	public void attachInput(PigNullableWritable k, Iterator<NullableTuple> inp) {
 		if (initialized == false) {
 			initialized = true;
-			s = (MapState) stateFactory.makeState(new HashMap(), null, 0, 1);
+			s = (IMapState) stateFactory.makeState(new FakeRunContext());
 			
 			if (windowOpts == null) {
 				agg = new CombineWrapper(new BasicPersist());
@@ -91,11 +85,11 @@ public class TridentStatePack extends POPackage {
 			NullableTuple t = new NullableTuple(tf.newTuple(tup.getAll()));
 			t.setIndex(ref.getIndex());
 			
-			// Create a trident tuple.
-			IFlexyTuple triTuple = tFactory.create(new FValues(k, t, POS));
+			// Create a tuple.
+			IFlexyTuple tuple = tFactory.create(new FValues(k, t, POS));
 			
 			// Initialize the current tuple t.
-			Object t_init = agg.init(triTuple);
+			Object t_init = agg.init(tuple);
 			
 //			System.out.println("k: " + k + " t: " + t + " t_init: " + t_init + " state_pre: " + state);
 			
@@ -111,7 +105,7 @@ public class TridentStatePack extends POPackage {
 		// Stash it out to the state.
 //		System.out.println("Writing: " + k);
 //		s.beginCommit(new Long(0));
-		s.multiPut(new Values(new Values(k)), new Values(state));
+		s.multiPut(new FValues(new FValues(k)), new FValues(state));
 //		s.commit(new Long(0));
 		
 //		System.out.println("TridentStatePack.attachInput called -- State: " + s);

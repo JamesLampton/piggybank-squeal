@@ -37,8 +37,10 @@ import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOpe
 import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.backend.storm.io.NOPLoad;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper;
-import org.apache.pig.piggybank.squeal.backend.storm.io.TridentStatePack;
+import org.apache.pig.piggybank.squeal.backend.storm.io.StatePack;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IUDFExposer;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
+import org.apache.pig.piggybank.squeal.flexy.model.FValues;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.DependencyOrderWalker;
 import org.apache.pig.impl.plan.NodeIdGenerator;
@@ -46,9 +48,6 @@ import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
 import org.apache.pig.impl.util.MultiMap;
-
-import backtype.storm.tuple.Values;
-import storm.trident.state.StateFactory;
 
 /**
  * The purpose of this class is to find static elements within the MapReduce
@@ -250,12 +249,12 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 //		String alias = mr.reducePlan.getLeaves().get(0).getAlias();
 		
 		// Pull the state factory.
-		StateFactory sf = StormOper.getStateFactory(pc, alias);
+		IStateFactory sf = StormOper.getStateFactory(pc, alias);
 //		System.out.println("StaticPlanFixer.getAlias: " + MRtoSConverter.getAlias(mr.mapPlan, false) + " alias: " + alias + " sf: " + sf);
 //		System.out.println("MapPlan: " + mr.mapPlan);
 //		System.out.println("ReducePlan: " + mr.reducePlan);
 		
-		TridentStatePack pack = new TridentStatePack(
+		StatePack pack = new StatePack(
 				new OperatorKey(scope, NodeIdGenerator.getGenerator().getNextNodeId(scope)),
 				sf, StormOper.getWindowOpts(pc, alias));
 		pack.getPkgr().setKeyType(mr.mapKeyType);
@@ -272,11 +271,11 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 		}
 		
 		// Register a "storm UDF" so it gets packaged too.
-		state_mr.UDFs.add(Values.class.getName());
+		state_mr.UDFs.add(FValues.class.getName());
 		// FIXME: Fix the stupid ivy dependencies?
 		state_mr.UDFs.add("clojure.lang.IPersistentVector");
 		// Register the trident state so the piggybank-squeal jar goes.
-		state_mr.UDFs.add(TridentStatePack.class.getName());
+		state_mr.UDFs.add(StatePack.class.getName());
 				
 		// Add the dependencies to using the static preds.
 		staticPlan.add(state_mr);

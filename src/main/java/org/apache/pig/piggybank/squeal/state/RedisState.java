@@ -18,46 +18,29 @@
 
 package org.apache.pig.piggybank.squeal.state;
 
-import backtype.storm.task.IMetricsContext;
-import backtype.storm.tuple.Values;
-
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.pig.impl.PigContext;
 import org.apache.pig.piggybank.squeal.backend.storm.state.MetricsAwareCacheMap;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.ISerializer;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisShardInfo;
 import redis.clients.jedis.Pipeline;
 import redis.clients.jedis.Response;
 import redis.clients.jedis.ShardedJedis;
-import storm.trident.state.JSONNonTransactionalSerializer;
-import storm.trident.state.JSONOpaqueSerializer;
-import storm.trident.state.JSONTransactionalSerializer;
-import storm.trident.state.OpaqueValue;
-import storm.trident.state.Serializer;
-import storm.trident.state.State;
-import storm.trident.state.map.IBackingMap;
-import storm.trident.state.StateFactory;
-import storm.trident.state.StateType;
-import storm.trident.state.TransactionalValue;
-import storm.trident.state.map.CachedMap;
-import storm.trident.state.map.MapState;
-import storm.trident.state.map.NonTransactionalMap;
-import storm.trident.state.map.OpaqueMap;
-import storm.trident.state.map.SnapshottableMap;
-import storm.trident.state.map.TransactionalMap;
 
-public class RedisState<T> implements IBackingMap<T> {
+public class RedisState<T> implements IMapState<T> {
 	
 	/*
 	 * Options for the Redis state.
 	 *  - localCacheSize - Number of elements to hold in memory.
-	 *  - globlKey - Used for the SnapshottableMap
 	 *  - serialize - Used for object marshalling.
 	 *  - expiration - Expiration in seconds for elements.
 	 *  - dbNum - database to select upon connect.
@@ -65,19 +48,16 @@ public class RedisState<T> implements IBackingMap<T> {
 	 */
 	public static class RedisOptions<T> implements Serializable {
         public int localCacheSize = 1000;
-        public String globalKey = "$GLOBAL$";
-        public Serializer<T> serializer = null;
-        public Serializer key_serializer = null;
+        public ISerializer<T> serializer = null;
+        public ISerializer key_serializer = null;
         public int expiration = 0;
         public int dbNum = 0;
         public String sep = "|";        
     }
 	
-	public static StateFactory fromJSONArgs(HashMap args) {
+	public static IStateFactory fromJSONArgs(HashMap args) {
 		// Create a default options:
 		RedisOptions opts = new RedisOptions();
-		// Specify a default storage type:
-		String storage_type = "NON_TRANSACTIONAL";
 		// Pull the server list from the args.
 		String servers = (String) args.get("servers");
 		
@@ -85,15 +65,12 @@ public class RedisState<T> implements IBackingMap<T> {
 		if (args.get("localCacheSize") != null) {
 			opts.localCacheSize = Integer.parseInt(args.get("localCacheSize").toString());
 		}
-		if (args.get("globalKey") != null) {
-			opts.globalKey = (String) args.get("globalKey");
-		}
 		if (args.get("serializer") != null) {
 			String cn = (String) args.get("serializer");
 			// Special case here -- pull the class name and set it up.
 			try {
 				Class<?> cls = Class.forName(cn);
-				opts.serializer = (Serializer) cls.newInstance();	
+				opts.serializer = (ISerializer) cls.newInstance();	
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -103,7 +80,7 @@ public class RedisState<T> implements IBackingMap<T> {
 			// Special case here -- pull the class name and set it up.
 			try {
 				Class<?> cls = Class.forName(cn);
-				opts.key_serializer = (Serializer) cls.newInstance();	
+				opts.key_serializer = (ISerializer) cls.newInstance();	
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -118,82 +95,33 @@ public class RedisState<T> implements IBackingMap<T> {
 			opts.sep = (String) args.get("sep");
 		}
 		
-		if (storage_type.equalsIgnoreCase("NON_TRANSACTIONAL")) {
-			return nonTransactional(servers, opts);
-		} else if (storage_type.equalsIgnoreCase("OPAQUE")) {
-			return opaque(servers, opts);
-		} else if (storage_type.equalsIgnoreCase("TRANSACTIONAL")) {
-			return transactional(servers, opts);
-		} else {
-			throw new RuntimeException("Unknown storage type: " + storage_type);
-		}
+		return new Factory(servers, opts);
 	}
-
-	/*
-	 * Helper routines for creating factories.
-	 */
-	// opaque
-    public static StateFactory opaque(String servers) { return opaque(servers, new RedisOptions()); }
-    public static StateFactory opaque(String servers, RedisOptions<OpaqueValue> opts) {
-        return new Factory(servers, StateType.OPAQUE, opts);
-    }
-    // Transactional
-    public static StateFactory transactional(String servers) { return transactional(servers, new RedisOptions()); }
-    public static StateFactory transactional(String servers, RedisOptions<TransactionalValue> opts) {
-        return new Factory(servers, StateType.TRANSACTIONAL, opts);
-    }
-    // nonTransactional
-    public static StateFactory nonTransactional(String servers) { return nonTransactional(servers, new RedisOptions()); }
-    public static StateFactory nonTransactional(String servers, RedisOptions<Object> opts) {
-        return new Factory(servers, StateType.NON_TRANSACTIONAL, opts);
-    }
 
     /*
      * Factory for creating RedisStates.
      */
-    protected static class Factory implements StateFactory {
-    	// Helper structure for easy lookup of serializers.
-        private static final Map<StateType, Serializer> DEFAULT_SERIALZERS = new HashMap<StateType, Serializer>() {{
-            put(StateType.NON_TRANSACTIONAL, new JSONNonTransactionalSerializer());
-            put(StateType.TRANSACTIONAL, new JSONTransactionalSerializer());
-            put(StateType.OPAQUE, new JSONOpaqueSerializer());
-        }};
-    	
-        StateType _type;
+    protected static class Factory implements IStateFactory {
         String _servers;
-        Serializer _ser;
+        ISerializer _ser;
         RedisOptions _opts;
 
-        public Factory(String servers, StateType type, RedisOptions options) {
-            _type = type;
+        public Factory(String servers, RedisOptions options) {
             _servers = servers;
             _opts = options;
             if(options.serializer==null) {
-                _ser = DEFAULT_SERIALZERS.get(type);
-                if(_ser==null) {
-                    throw new RuntimeException("Couldn't find serializer for state type: " + type);
-                }
+                throw new RuntimeException("Must specify a serializer!");
             } else {
                 _ser = options.serializer;
             }
         }
 
         @Override
-        public State makeState(Map conf, IMetricsContext m, int partitionIndex, int numPartitions) {
+        public IMapState makeState(IRunContext context) {
+        	Map conf = context.getStormConf();
+        	
             RedisState s = new RedisState(makeRedisClient(_servers), _opts, _ser);
-//            CachedMap c = new CachedMap(s, _opts.localCacheSize);
-            MetricsAwareCacheMap c = new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
-            MapState ms;
-            if(_type == StateType.NON_TRANSACTIONAL) {
-                ms = NonTransactionalMap.build(c);
-            } else if(_type==StateType.OPAQUE) {
-                ms = OpaqueMap.build(c);
-            } else if(_type==StateType.TRANSACTIONAL){
-                ms = TransactionalMap.build(c);
-            } else {
-                throw new RuntimeException("Unknown state type: " + _type);
-            }
-            return new SnapshottableMap(ms, new Values(_opts.globalKey));
+            return new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
         }
         
         public String toString() {
@@ -218,9 +146,9 @@ public class RedisState<T> implements IBackingMap<T> {
     
     private final ShardedJedis _client;
     private RedisOptions _opts;
-    private Serializer _ser;
+    private ISerializer _ser;
     
-    public RedisState(ShardedJedis client, RedisOptions opts, Serializer<T> ser) {
+    public RedisState(ShardedJedis client, RedisOptions opts, ISerializer<T> ser) {
         _client = client;
         _opts = opts;
         _ser = ser;
@@ -331,4 +259,9 @@ public class RedisState<T> implements IBackingMap<T> {
     		p.sync();
     	}
     }
+
+	@Override
+	public void commit(long txid) {
+		
+	}
 }

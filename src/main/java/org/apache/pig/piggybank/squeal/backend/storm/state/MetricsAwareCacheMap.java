@@ -22,24 +22,36 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
-
-import org.apache.pig.piggybank.squeal.flexy.oper.FlexyBaseFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
 import org.apache.pig.piggybank.squeal.metrics.IMetricsTransport;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 
-import storm.trident.state.map.IBackingMap;
-import storm.trident.util.LRUMap;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
 
-// Hacked from: storm.trident.state.map.CacheMap v0.9.2
-public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
-	LRUMap<List<Object>, T> _cache;
-    IBackingMap<T> _delegate;
+// Hacked from: storm.tri dent.state.map.CacheMap v0.9.2
+public class MetricsAwareCacheMap<T> implements IMapState<T> {
+	LoadingCache<Object, Object> _cache;
+    IMapState<T> _delegate;
 	private IMetricsTransport mt;
 	boolean inited = false;
 
-    public MetricsAwareCacheMap(IBackingMap<T> delegate, int cacheSize, Map conf) {
-        _cache = new LRUMap<List<Object>, T>(cacheSize);
+	LoadingCache<Object, Object> makeCache(int cacheSize) {
+		LoadingCache<Object, Object> cache = CacheBuilder.newBuilder()
+				.maximumSize(cacheSize)
+				.build(
+						new CacheLoader<Object, Object>() {
+							public Object load(Object key) {
+								// This will throw an exception.
+								return null;
+							}
+						});
+		return cache;
+	}
+	
+    public MetricsAwareCacheMap(IMapState<T> delegate, int cacheSize, Map conf) {
+        _cache = makeCache(cacheSize);
         _delegate = delegate;
         mt = MetricsTransportFactory.getInstance(conf, ClassLoader.getSystemClassLoader());
         if (mt != null) {
@@ -77,12 +89,13 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
         Map<List<Object>, T> results = new HashMap<List<Object>, T>();
         List<List<Object>> toGet = new ArrayList<List<Object>>();
         for(List<Object> key: keys) {
-            if(_cache.containsKey(key)) {
-            	hit_count += 1;
-                results.put(key, _cache.get(key));
-            } else {
-                toGet.add(key);
-            }
+        	Object res = _cache.getIfPresent(key);
+        	if (res == null) {
+        		hit_count += 1;
+        		toGet.add(key);
+        	} else {
+                results.put(key, (T) res);
+        	}
         }
 
         List<T> fetchedVals = _delegate.multiGet(toGet);
@@ -135,4 +148,10 @@ public class MetricsAwareCacheMap<T> implements IBackingMap<T> {
             _cache.put(keys.get(i), values.get(i));
         }
     }
+
+	@Override
+	public void commit(long txid) {
+		// TODO Auto-generated method stub
+		
+	}
 }

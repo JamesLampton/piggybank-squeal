@@ -40,14 +40,13 @@ import org.apache.pig.piggybank.squeal.backend.storm.io.ISignStore;
 import org.apache.pig.piggybank.squeal.backend.storm.io.NOPLoad;
 import org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IUDFExposer;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.DependencyOrderWalker;
 import org.apache.pig.impl.plan.NodeIdGenerator;
 import org.apache.pig.impl.plan.OperatorKey;
 import org.apache.pig.impl.plan.PlanException;
 import org.apache.pig.impl.plan.VisitorException;
-
-import storm.trident.state.StateFactory;
 
 public class MRtoSConverter extends MROpPlanVisitor {
 
@@ -245,7 +244,7 @@ public class MRtoSConverter extends MROpPlanVisitor {
 		
 		// Update the UDF list to include those used in persistence.
 		if (!po.getStateFactory(pc).getClass().getName().startsWith("storm.trident.testing")) {
-			StateFactory sf = po.getStateFactory(pc);
+			IStateFactory sf = po.getStateFactory(pc);
 			splan.UDFs.add(sf.getClass().getName());
 			
 			// See if the state factory has other dependencies.

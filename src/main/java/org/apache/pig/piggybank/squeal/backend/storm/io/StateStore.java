@@ -20,7 +20,6 @@ package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -30,16 +29,17 @@ import org.apache.pig.data.DataType;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.io.PigNullableWritable;
 import org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FakeRunContext;
 
 import backtype.storm.tuple.Values;
-import storm.trident.state.StateFactory;
-import storm.trident.state.map.MapState;
 
 public class StateStore extends PigStorage implements ISignStore {
 
 	private String jsonOpts;
 	private AtomicInteger sign;
-	private MapState s;
+	private IMapState s;
 
 	public StateStore(String jsonOpts) {
 		this.jsonOpts = jsonOpts;
@@ -60,8 +60,8 @@ public class StateStore extends PigStorage implements ISignStore {
 	@Override
 	public void putNext(Tuple t) throws IOException {
 		if (s == null) {
-			StateFactory stateFactory = new StateWrapper(jsonOpts).getStateFactory();
-			s = (MapState) stateFactory.makeState(new HashMap(), null, 0, 1);
+			IStateFactory stateFactory = new StateWrapper(jsonOpts).getStateFactory();
+			s = (IMapState) stateFactory.makeState(new FakeRunContext());
 		}
 		
 		if (sign.get() < 0) {

@@ -20,8 +20,7 @@ package org.apache.pig.piggybank.squeal.flexy.components;
 
 import java.io.Serializable;
 
-public interface IStateFactory extends Serializable {
-
-	public IMapState makeState(IRunContext context);
-
+public interface ISerializer<T> extends Serializable {
+	byte[] serialize(T obj);
+    T deserialize(byte[] b);
 }

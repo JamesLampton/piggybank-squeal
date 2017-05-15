@@ -59,7 +59,6 @@ import org.apache.pig.piggybank.squeal.backend.storm.plans.SOpPlanVisitor;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.SOperPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.plans.StormOper;
 import org.apache.pig.piggybank.squeal.backend.storm.state.CombineTupleWritable;
-import org.apache.pig.piggybank.squeal.backend.storm.state.TridentStateWrapper;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyBolt;
 import org.apache.pig.piggybank.squeal.backend.storm.topo.FlexyMasterSpout;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
@@ -346,7 +345,7 @@ public class Main {
 						agg_fact.getStage1Aggregator(), 
 						agg_fact.getStage2Aggregator(), 
 						agg_fact.getStoreAggregator(),
-						new TridentStateWrapper(sop.getStateFactory(pc)),
+						sop.getStateFactory(pc),
 						output_fields);
 				
 				if (sop.getParallelismHint() > 0) {

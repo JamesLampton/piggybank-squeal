@@ -21,6 +21,7 @@ package org.apache.pig.piggybank.squeal.backend.storm.plans;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.plans.PhysicalPlan;
 import org.apache.pig.piggybank.squeal.backend.storm.state.StateWrapper;
 import org.apache.pig.piggybank.squeal.flexy.components.IFunction;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.plan.Operator;
 import org.apache.pig.impl.plan.OperatorKey;
@@ -28,7 +29,6 @@ import org.apache.pig.impl.plan.VisitorException;
 
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.tuple.Fields;
-import storm.trident.state.StateFactory;
 
 public class StormOper extends Operator<SOpPlanVisitor> {
 
@@ -96,14 +96,14 @@ public class StormOper extends Operator<SOpPlanVisitor> {
 		return alias;
 	}
 	
-	static public StateFactory getStateFactory(PigContext pc, String alias) {
+	static public IStateFactory getStateFactory(PigContext pc, String alias) {
 		// Pull the leaf's name and look for storage options.
 		String store_opts = pc.getProperties().getProperty(alias + "_store_opts");
 //		System.out.println("getStateFactory: " + alias + " args: " + store_opts);
 		return new StateWrapper(store_opts).getStateFactory();
 	}
 	
-	public StateFactory getStateFactory(PigContext pc) {
+	public IStateFactory getStateFactory(PigContext pc) {
 		return getStateFactory(pc, alias);
 	}
 	

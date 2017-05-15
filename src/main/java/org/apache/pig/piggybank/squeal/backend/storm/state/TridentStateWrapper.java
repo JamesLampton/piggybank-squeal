@@ -25,7 +25,6 @@ import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
 import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
-import storm.trident.state.State;
 import storm.trident.state.StateFactory;
 import storm.trident.state.map.MapState;
 

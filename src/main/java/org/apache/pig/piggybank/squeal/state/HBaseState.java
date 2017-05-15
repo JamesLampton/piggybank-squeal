@@ -36,52 +36,33 @@ import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.util.Bytes;
 import org.apache.pig.piggybank.squeal.backend.storm.state.IUDFExposer;
 import org.apache.pig.piggybank.squeal.backend.storm.state.MetricsAwareCacheMap;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.ISerializer;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
 
-import backtype.storm.task.IMetricsContext;
-import backtype.storm.tuple.Values;
-import storm.trident.state.JSONNonTransactionalSerializer;
-import storm.trident.state.JSONOpaqueSerializer;
-import storm.trident.state.JSONTransactionalSerializer;
-import storm.trident.state.OpaqueValue;
-import storm.trident.state.Serializer;
-import storm.trident.state.State;
-import storm.trident.state.StateFactory;
-import storm.trident.state.StateType;
-import storm.trident.state.TransactionalValue;
-import storm.trident.state.map.CachedMap;
-import storm.trident.state.map.IBackingMap;
-import storm.trident.state.map.MapState;
-import storm.trident.state.map.NonTransactionalMap;
-import storm.trident.state.map.OpaqueMap;
-import storm.trident.state.map.SnapshottableMap;
-import storm.trident.state.map.TransactionalMap;
-
-public class HBaseState<T> implements IBackingMap<T> {
+public class HBaseState<T> implements IMapState<T> {
 
 	/*
 	 * Options for the HBase state.
 	 *  - localCacheSize - Number of elements to hold in memory.
-	 *  - globlKey - Used for the SnapshottableMap
 	 *  - serialize - Used for object marshaling.
 	 *  - columnQualifier - optional qualfier.
 	 *  - sep - Compound key separator.
 	 */
 	public static class HBaseOptions<T> implements Serializable {
         public int localCacheSize = 1000;
-        public String globalKey = "$GLOBAL$";
-        public Serializer<T> serializer = null;
-        public Serializer key_serializer = null;
+        public ISerializer<T> serializer = null;
+        public ISerializer key_serializer = null;
         public String sep = "|";        
         public String columnQualifier = "cq";
         public boolean autoFlush = false;
         public boolean skipWAL = false;
     }
 	
-	public static StateFactory fromJSONArgs(HashMap args) {
+	public static IStateFactory fromJSONArgs(HashMap args) {
 		// Create a default options:
 		HBaseOptions opts = new HBaseOptions();
-		// Specify a default storage type:
-		String storage_type = "NON_TRANSACTIONAL";
 		
 		// Pull the table name.
 		String tableName = (String) args.get("tableName");
@@ -92,15 +73,12 @@ public class HBaseState<T> implements IBackingMap<T> {
 		if (args.get("localCacheSize") != null) {
 			opts.localCacheSize = Integer.parseInt(args.get("localCacheSize").toString());
 		}
-		if (args.get("globalKey") != null) {
-			opts.globalKey = (String) args.get("globalKey");
-		}
 		if (args.get("serializer") != null) {
 			String cn = (String) args.get("serializer");
 			// Special case here -- pull the class name and set it up.
 			try {
 				Class<?> cls = Class.forName(cn);
-				opts.serializer = (Serializer) cls.newInstance();	
+				opts.serializer = (ISerializer) cls.newInstance();	
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -110,7 +88,7 @@ public class HBaseState<T> implements IBackingMap<T> {
 			// Special case here -- pull the class name and set it up.
 			try {
 				Class<?> cls = Class.forName(cn);
-				opts.key_serializer = (Serializer) cls.newInstance();	
+				opts.key_serializer = (ISerializer) cls.newInstance();	
 			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
@@ -129,85 +107,37 @@ public class HBaseState<T> implements IBackingMap<T> {
 			opts.skipWAL = ((String) args.get("skipWAL")).equalsIgnoreCase("true");
 		}
 		
-		if (storage_type.equalsIgnoreCase("NON_TRANSACTIONAL")) {
-			return nonTransactional(tableName, columnFamily, opts);
-		} else if (storage_type.equalsIgnoreCase("OPAQUE")) {
-			return opaque(tableName, columnFamily, opts);
-		} else if (storage_type.equalsIgnoreCase("TRANSACTIONAL")) {
-			return transactional(tableName, columnFamily, opts);
-		} else {
-			throw new RuntimeException("Unknown storage type: " + storage_type);
-		}
+		return new Factory(tableName, columnFamily, opts);
 	}
-
-	/*
-	 * Helper routines for creating factories.
-	 */
-	// opaque
-    public static StateFactory opaque(String tableName, String columnFamily) { return opaque(tableName, columnFamily, new HBaseOptions()); }
-    public static StateFactory opaque(String tableName, String columnFamily, HBaseOptions<OpaqueValue> opts) {
-        return new Factory(tableName, columnFamily, StateType.OPAQUE, opts);
-    }
-    // Transactional
-    public static StateFactory transactional(String tableName, String columnFamily) { return transactional(tableName, columnFamily, new HBaseOptions()); }
-    public static StateFactory transactional(String tableName, String columnFamily, HBaseOptions<TransactionalValue> opts) {
-        return new Factory(tableName, columnFamily, StateType.TRANSACTIONAL, opts);
-    }
-    // nonTransactional
-    public static StateFactory nonTransactional(String tableName, String columnFamily) { return nonTransactional(tableName, columnFamily, new HBaseOptions()); }
-    public static StateFactory nonTransactional(String tableName, String columnFamily, HBaseOptions<Object> opts) {
-        return new Factory(tableName, columnFamily, StateType.NON_TRANSACTIONAL, opts);
-    }
 
     /*
      * Factory for creating RedisStates.
      */
-    protected static class Factory implements StateFactory, IUDFExposer {
-    	// Helper structure for easy lookup of serializers.
-        private static final Map<StateType, Serializer> DEFAULT_SERIALZERS = new HashMap<StateType, Serializer>() {{
-            put(StateType.NON_TRANSACTIONAL, new JSONNonTransactionalSerializer());
-            put(StateType.TRANSACTIONAL, new JSONTransactionalSerializer());
-            put(StateType.OPAQUE, new JSONOpaqueSerializer());
-        }};
+    protected static class Factory implements IStateFactory, IUDFExposer {
     	
-        StateType _type;
-        Serializer _ser;
+        ISerializer _ser;
         HBaseOptions _opts;
 
 		private String _tableName;
 		private String _columnFamily;
 
-        public Factory(String tableName, String columnFamily, StateType type, HBaseOptions options) {
-            _type = type;
+        public Factory(String tableName, String columnFamily, HBaseOptions options) {
             _tableName = tableName;
             _columnFamily = columnFamily;
             _opts = options;
             if(options.serializer==null) {
-                _ser = DEFAULT_SERIALZERS.get(type);
-                if(_ser==null) {
-                    throw new RuntimeException("Couldn't find serializer for state type: " + type);
-                }
+            	throw new RuntimeException("Must specify a serializer");
             } else {
                 _ser = options.serializer;
             }
         }
 
         @Override
-        public State makeState(Map conf, IMetricsContext m, int partitionIndex, int numPartitions) {
+        public IMapState makeState(IRunContext context) {
+        	Map conf = context.getStormConf();
+
             HBaseState s = new HBaseState(_tableName, _columnFamily, _opts, _ser);
-//          CachedMap c = new CachedMap(s, _opts.localCacheSize);
-            MetricsAwareCacheMap c = new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
-            MapState ms;
-            if(_type == StateType.NON_TRANSACTIONAL) {
-                ms = NonTransactionalMap.build(c);
-            } else if(_type==StateType.OPAQUE) {
-                ms = OpaqueMap.build(c);
-            } else if(_type==StateType.TRANSACTIONAL){
-                ms = TransactionalMap.build(c);
-            } else {
-                throw new RuntimeException("Unknown state type: " + _type);
-            }
-            return new SnapshottableMap(ms, new Values(_opts.globalKey));
+            return new MetricsAwareCacheMap(s, _opts.localCacheSize, conf);
         }
         
         public String toString() {
@@ -228,7 +158,7 @@ public class HBaseState<T> implements IBackingMap<T> {
     }
     
     private HBaseOptions _opts;
-    private Serializer _ser;
+    private ISerializer _ser;
 	private byte[] _tableName;
 	private byte[] _columnFamily;
 	private byte[] _columnQualifier;
@@ -236,7 +166,7 @@ public class HBaseState<T> implements IBackingMap<T> {
 	private String tableName;
 	private String columnFamily;
     
-    public HBaseState(String tableName, String columnFamily, HBaseOptions opts, Serializer<T> ser) {
+    public HBaseState(String tableName, String columnFamily, HBaseOptions opts, ISerializer<T> ser) {
         _tableName = Bytes.toBytes(tableName);
         this.tableName = tableName;
         _columnFamily = Bytes.toBytes(columnFamily);
@@ -359,5 +289,10 @@ public class HBaseState<T> implements IBackingMap<T> {
 	public String toString() {
     	return "HBaseState@" + this.hashCode() + " tableName: " + tableName + " columnFamily: " + columnFamily;
     }
+
+	@Override
+	public void commit(long txid) {
+		
+	}
 
 }

@@ -32,11 +32,17 @@ import org.apache.pig.data.Tuple;
 import org.apache.pig.data.TupleFactory;
 import org.apache.pig.impl.PigContext;
 import org.apache.pig.impl.io.PigNullableWritable;
+import org.apache.pig.piggybank.squeal.flexy.components.IMapState;
+import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
+import org.apache.pig.piggybank.squeal.flexy.components.IStateFactory;
+import org.apache.pig.piggybank.squeal.flexy.components.impl.FakeRunContext;
+import org.apache.pig.piggybank.squeal.flexy.model.FFields;
+import org.apache.pig.piggybank.squeal.flexy.model.FStream;
+import org.apache.pig.piggybank.squeal.state.LRUMapState;
 import org.mortbay.util.ajax.JSON;
 
-import storm.trident.state.StateFactory;
-import storm.trident.state.map.MapState;
-import storm.trident.testing.LRUMemoryMapState;
+import backtype.storm.task.IMetricsContext;
+import backtype.storm.task.TopologyContext;
 
 public class StateWrapper {
 	private String stateFactoryCN;
@@ -60,13 +66,13 @@ public class StateWrapper {
 //		this.jsonArgs = jsonArgs;
 	}
 	
-	public StateFactory getStateFactory() {
+	public IStateFactory getStateFactory() {
 		return getStateFactoryFromArgs(stateFactoryCN, staticMethod, args);
 	}
 	
-	public static StateFactory getStateFactoryFromArgs(String stateFactoryCN, String staticMethod, Object[] args) {
+	public static IStateFactory getStateFactoryFromArgs(String stateFactoryCN, String staticMethod, Object[] args) {
 		if (stateFactoryCN == null) {
-			return new LRUMemoryMapState.Factory(100);
+			return new LRUMapState.Factory(100);
 		}
 		
 		try {
@@ -82,13 +88,13 @@ public class StateWrapper {
 			
 			if (staticMethod != null) {
 				Method m = cls.getMethod(staticMethod, cls_arr);
-				return (StateFactory) m.invoke(cls, args);
+				return (IStateFactory) m.invoke(cls, args);
 			} else {			
 				if (args != null) {
 					Constructor<?> constr = cls.getConstructor(cls_arr);
-					return (StateFactory) constr.newInstance(args);
+					return (IStateFactory) constr.newInstance(args);
 				} else {
-					return (StateFactory) cls.newInstance();
+					return (IStateFactory) cls.newInstance();
 				}
 			}
 		} catch (Exception e) {
@@ -104,8 +110,8 @@ public class StateWrapper {
 		}
 		
 		StateWrapper sw = new StateWrapper(args[0]);
-		StateFactory sf = sw.getStateFactory();
-		MapState s = (MapState) sf.makeState(new HashMap(), null, 0, 1);
+		IStateFactory sf = sw.getStateFactory();
+		IMapState s = (IMapState) sf.makeState(new FakeRunContext());
 		List<List<Object>> keys = new ArrayList<List<Object>>();
 		
 		ArrayList<Object> key = new ArrayList<Object>();
