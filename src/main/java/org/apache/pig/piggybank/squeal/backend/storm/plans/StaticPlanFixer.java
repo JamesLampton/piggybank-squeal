@@ -52,7 +52,7 @@ import org.apache.pig.impl.util.MultiMap;
 /**
  * The purpose of this class is to find static elements within the MapReduce
  * plan and to execute Hadoop jobs to place the appropriate data into the
- * Trident State.
+ * state.
  * 
  * We're looking for non-streaming wrapped loads that ultimately mix with
  * streamed results.
@@ -183,7 +183,7 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 			new LoadFinder(mr.mapPlan, load_list).visit();
 			
 			// Add a new step to the static plan to load
-			// the data into a trident state.
+			// the data into a state.
 			addLoadStateOper(mr, static_preds, load_list);
 			
 			// Replace all the static loads with NOPs
@@ -274,7 +274,7 @@ public class StaticPlanFixer extends MROpPlanVisitor {
 		state_mr.UDFs.add(FValues.class.getName());
 		// FIXME: Fix the stupid ivy dependencies?
 		state_mr.UDFs.add("clojure.lang.IPersistentVector");
-		// Register the trident state so the piggybank-squeal jar goes.
+		// Register the state so the piggybank-squeal jar goes.
 		state_mr.UDFs.add(StatePack.class.getName());
 				
 		// Add the dependencies to using the static preds.

@@ -49,7 +49,7 @@ public class FFields implements Serializable {
 	}
 
 	public static FFields fieldsConcat(FFields... fields) {
-		// Similar to: storm.trident.util.TridentUtils
+		// Similar to: storm.tri dent.util.TridentUtils
 		List<String> ret = new ArrayList<String>();
 		for(FFields f: fields) {
 			if(f!=null) ret.addAll(f._fields);

@@ -243,16 +243,14 @@ public class MRtoSConverter extends MROpPlanVisitor {
 		splan.add(po);
 		
 		// Update the UDF list to include those used in persistence.
-		if (!po.getStateFactory(pc).getClass().getName().startsWith("storm.trident.testing")) {
-			IStateFactory sf = po.getStateFactory(pc);
-			splan.UDFs.add(sf.getClass().getName());
-			
-			// See if the state factory has other dependencies.
-			// Such as a MultiState.
-			if (IUDFExposer.class.isInstance(sf)) {
-				IUDFExposer ex = (IUDFExposer) sf;
-				splan.UDFs.addAll(ex.getUDFs());
-			}
+		IStateFactory sf = po.getStateFactory(pc);
+		splan.UDFs.add(sf.getClass().getName());
+
+		// See if the state factory has other dependencies.
+		// Such as a MultiState.
+		if (IUDFExposer.class.isInstance(sf)) {
+			IUDFExposer ex = (IUDFExposer) sf;
+			splan.UDFs.addAll(ex.getUDFs());
 		}
 		
 		try {
