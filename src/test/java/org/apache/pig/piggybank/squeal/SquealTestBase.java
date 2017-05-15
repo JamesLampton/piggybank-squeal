@@ -148,7 +148,7 @@ public abstract class SquealTestBase extends TestCase {
 			//	    		pig = new PigServer(ExecType.STORM, cluster.getProperties());
 			//FIXME   	pig = new PigServer(new StormExecType(), cluster.getProperties());
 		} else {
-			pig = new PigServer("flexy-storm-local");
+			pig = new PigServer("storm-local");
 			//	        	pig = new PigServer("storm-local");
 			//	        	pig = new PigServer("local");
 		}

@@ -41,7 +41,7 @@ public class StormExecutionEngine extends HExecutionEngine {
 		// Disable the FetchOptimizer.
 		pigContext.getProperties().setProperty(PigConfiguration.OPT_FETCH, "false");
 		
-		this.launcher = new StormLauncher(run_local, false);
+		this.launcher = new StormLauncher(run_local);
 	}
 
 	@Override
