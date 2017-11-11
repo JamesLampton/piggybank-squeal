@@ -28,6 +28,10 @@ import java.util.Random;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.io.DataInputBuffer;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
+import org.apache.pig.piggybank.squeal.backend.storm.state.PigSerializer;
 import org.apache.pig.piggybank.squeal.flexy.components.IFlexyTuple;
 import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
@@ -35,12 +39,11 @@ import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 
 import com.esotericsoftware.kryo.io.Input;
 import com.esotericsoftware.kryo.io.Output;
+import com.twitter.heron.api.generated.TopologyAPI.Grouping;
+import com.twitter.heron.api.topology.TopologyContext;
 
 import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.generated.Grouping;
 import backtype.storm.grouping.CustomStreamGrouping;
-import backtype.storm.serialization.KryoValuesDeserializer;
-import backtype.storm.serialization.KryoValuesSerializer;
 import backtype.storm.task.WorkerTopologyContext;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
@@ -51,16 +54,16 @@ public class Binner {
 	// FIXME: Get rid of the Kryo stuff.  Use Hadoop's serialization directly.
 	public static final String WRITE_THRESH_CONF = "flexy.binner.write.threshold";
 	int _write_thresh = 64*1024;
-	private KryoValuesSerializer _ser;
 	private static final Log log = LogFactory.getLog(Binner.class);
+	PigSerializer ps = new PigSerializer();
 	
 	class OutCollector {
-		Output out;
 		Object aKey;
+		DataOutputBuffer dbuf;
 		
 		OutCollector(Object aKey) {
 			this.aKey = aKey;
-			out = new Output(_write_thresh, -1);
+			dbuf = new DataOutputBuffer(_write_thresh);
 		}
 	}
 	
@@ -88,27 +91,31 @@ public class Binner {
 		public void prepare(WorkerTopologyContext context,
 				GlobalStreamId stream, List<Integer> targetTasks) {
 			
-			if (gr.is_set_fields()) {
-				gr_fields = new FFields(gr.get_fields());
-			} else if (gr.is_set_custom_serialized()) {
-				wrapped = (CustomStreamGrouping) Utils.deserialize(gr.get_custom_serialized());
-				wrapped.prepare(context, stream, targetTasks);
-			}
+			// FIXME: I'll have to grab these from somewhere...
+//			if (gr.is_set_fields()) {
+//				gr_fields = new FFields(gr.get_fields());
+//			} else if (gr.is_set_custom_serialized()) {
+//				wrapped = (CustomStreamGrouping) Utils.deserialize(gr.get_custom_serialized());
+//				wrapped.prepare(context, stream, targetTasks);
+//			}
 			
 			this.targetTasks = targetTasks;
 			num_tasks = targetTasks.size();
 		}
 
 		public List<Integer> chooseTasks(int taskId, final IFlexyTuple tup) {
-			if (gr.is_set_fields()) {
-				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
-			} else if (gr.is_set_shuffle()) {
-				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
-			} else if (wrapped != null) {
-				return wrapped.chooseTasks(taskId, tup.getValues());
-			} else {
-				throw new RuntimeException("Unknown grouping type: " + gr.getSetField());
-			}
+			// FIXME: I'll have to wait on this...
+			return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
+			
+//			if (gr.is_set_fields()) {
+//				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
+//			} else if (gr.is_set_shuffle()) {
+//				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
+//			} else if (wrapped != null) {
+//				return wrapped.chooseTasks(taskId, tup.getValues());
+//			} else {
+//				throw new RuntimeException("Unknown grouping type: " + gr.getSetField());
+//			}
 		}
 		
 	}
@@ -120,15 +127,18 @@ public class Binner {
 		taskId = context.getThisTaskId();
 		
 		// Determine the downstream subscribers.
-		for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {
+		//STORM: for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {
+		TopologyContext d = MonkeyPatch.getTopologyContextDelegate(context.getStormTopologyContext());
+		
+		// Not sure what I'll be looking at here...
+		System.err.println(d.getTargets(exposedName));
+		
+		for (Entry<String, Grouping> ent : d.getTargets(exposedName).get("FIXME:Binner.prepare()").entrySet()) {
 			Grouper gr = new Grouper(ent.getValue());
 			gr.prepare(context.getStormTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
 					context.getStormTopologyContext().getComponentTasks(ent.getKey()));
 			groupings.add(gr);
 		}
-		
-		// Grab Kryo instances.
-		_ser = new KryoValuesSerializer(context.getStormConf());
 		
 		// Pull any configuration overrides.
 		Number conf_int = (Number) context.get(WRITE_THRESH_CONF);
@@ -147,10 +157,17 @@ public class Binner {
 				}
 
 				// write the data out.
-				_ser.serializeInto(tup.getValues(), curOut.out);
+				// FIXME: where is this deserialized?
+				List<Object> vals = tup.getValues();
+				curOut.dbuf.writeInt(vals.size());
+				for (int i = 0; i < vals.size(); i++) {
+					byte[] buf = ps.serialize(vals.get(i));
+					curOut.dbuf.writeInt(buf.length);
+					curOut.dbuf.write(buf);
+				}
 
 				// Determine if we need to flush this buffer
-				if (curOut.out.position() > _write_thresh) {
+				if (curOut.dbuf.size() > _write_thresh) {
 					bins.remove(dest);
 					_flush(curOut, anchor);
 				}
@@ -160,7 +177,7 @@ public class Binner {
 
 	private void _flush(OutCollector curOut, Object anchor) {
 		// Emit curOut.
-		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, curOut.out.toBytes()));
+		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, curOut.dbuf.getData()));
 	}
 	
 	public void flush(Object inputAnchor) {
@@ -172,19 +189,26 @@ public class Binner {
 	}
 
 	public static class BinDecoder {
-		private KryoValuesDeserializer _deser;
 
-		public BinDecoder(IRunContext context) {
-			
-			_deser = new KryoValuesDeserializer(context.getStormConf());
-		}
+		DataInputBuffer dbuf = new DataInputBuffer();
+		PigSerializer ps = new PigSerializer();
 		
-		public List<Object> decodeList(Input in) {
-			if (in.position() >= in.limit()) {
-				return null;
+		public List<Object> decodeList(byte[] in) throws IOException {
+			dbuf.reset(in, in.length);
+			
+			int listLength = dbuf.readInt();
+			
+			List<Object> ret = new ArrayList<Object>(listLength);
+			
+			for (int i = 0; i < listLength; i++) {
+				int bufLen = dbuf.readInt();
+				byte[] buf = new byte[bufLen];
+				dbuf.read(buf);
+				
+				ret.add(ps.deserialize(buf));
 			}
-
-			return _deser.deserializeFrom(in);
+			
+			return ret;
 		}
 	}
 		

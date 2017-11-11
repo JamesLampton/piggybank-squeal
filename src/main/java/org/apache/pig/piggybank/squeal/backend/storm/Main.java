@@ -74,21 +74,24 @@ import org.apache.pig.piggybank.squeal.flexy.oper.Reduce;
 import org.apache.pig.piggybank.squeal.flexy.oper.WindowCombinePersist;
 import org.apache.pig.piggybank.squeal.metrics.MetricsTransportFactory;
 import org.jgrapht.graph.DefaultDirectedGraph;
-import org.yaml.snakeyaml.Yaml;
+
+import com.twitter.heron.api.HeronTopology;
+import com.twitter.heron.api.generated.TopologyAPI;
+import com.twitter.heron.api.generated.TopologyAPI.Spout;
+import com.twitter.heron.api.generated.TopologyAPI.Topology;
+import com.twitter.heron.shaded.org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
-import backtype.storm.generated.Bolt;
 import backtype.storm.generated.InvalidTopologyException;
-import backtype.storm.generated.SpoutSpec;
 import backtype.storm.generated.StormTopology;
-import backtype.storm.generated.StreamInfo;
 import backtype.storm.topology.BoltDeclarer;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
+import backtype.storm.utils.ConfigUtils;
 import backtype.storm.utils.Utils;
 
 public class Main {
@@ -479,39 +482,52 @@ public class Main {
         
         ps.println("# Spouts:                                          ");
         
-        Map<String, SpoutSpec> spouts = topo.get_spouts();
-        for (Entry<String, SpoutSpec> ent : spouts.entrySet()) {
-        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
-        	
-        	SpoutSpec spec = ent.getValue();
-        	
-        	ps.println("Streams: ");
-        	Map<String, StreamInfo> streams = spec.get_common().get_streams();
-        	for (Entry<String, StreamInfo> ent2 : streams.entrySet()) {
-        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-        	}
+        // Storm config, use an empty map to see what that does.
+        com.twitter.heron.api.Config heronConfig = ConfigUtils.translateConfig(new HashMap());
+        
+        Topology htopo = topo.getStormTopology()
+        		.setConfig(heronConfig).
+                setName("MAIN-explain").
+                setState(TopologyAPI.TopologyState.RUNNING).
+                getTopology();
+               
+		for (Spout ent : htopo.getSpoutsList()) {
+			System.err.println("Main.explain: " + ent + " " + ent.getComp().getConfig().getKvsList());
+			com.twitter.heron.api.generated.TopologyAPI.Config v = ent.getComp().getConfig();
+			
+			System.err.println("VV: " + v);
+			
+        	ps.println(ent.getComp().getName() + " parallel: " + ent.getComp().getConfig().getKvsList()); // + ent.getComp().getConfig().getKvsList().get.get_common().get_parallelism_hint());
+//        	
+//        	SpoutSpec spec = ent.getValue();
+//        	
+//        	ps.println("Streams: ");
+//        	Map<String, StreamInfo> streams = spec.get_common().get_streams();
+//        	for (Entry<String, StreamInfo> ent2 : streams.entrySet()) {
+//        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
+//        	}
         	
         	ps.println("#--------------------------------------------------");
         }
         
         ps.println("# Bolts:                                           ");
-        
-        for (Entry<String, Bolt> ent : topo.get_bolts().entrySet()) {
-        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
-        	
-        	ps.println("Inputs: ");
-        	Map inputs = ent.getValue().get_common().get_inputs();        	
-			for (Object k : inputs.keySet()) {
-        		ps.println("** " + k + " " + inputs.get(k));
-        	}
-        	
-        	ps.println("Outputs: ");
-        	for (Entry<String, StreamInfo> ent2 : ent.getValue().get_common().get_streams().entrySet()) {
-        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-        	}
-        	
-        	ps.println("#--------------------------------------------------");
-        }
+//        
+//        for (Entry<String, Bolt> ent : topo.get_bolts().entrySet()) {
+//        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
+//        	
+//        	ps.println("Inputs: ");
+//        	Map inputs = ent.getValue().get_common().get_inputs();        	
+//			for (Object k : inputs.keySet()) {
+//        		ps.println("** " + k + " " + inputs.get(k));
+//        	}
+//        	
+//        	ps.println("Outputs: ");
+//        	for (Entry<String, StreamInfo> ent2 : ent.getValue().get_common().get_streams().entrySet()) {
+//        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
+//        	}
+//        	
+//        	ps.println("#--------------------------------------------------");
+//        }
 	}
 	
 	void runTestCluster(String topology_name, long wait_time, boolean debug) {

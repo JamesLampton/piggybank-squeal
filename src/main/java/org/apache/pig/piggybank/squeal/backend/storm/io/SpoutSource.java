@@ -19,6 +19,8 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.pig.piggybank.squeal.flexy.components.IRunContext;
@@ -26,7 +28,9 @@ import org.apache.pig.piggybank.squeal.flexy.components.ISource;
 import org.apache.pig.piggybank.squeal.flexy.components.SourceOutputCollector;
 import org.apache.pig.piggybank.squeal.flexy.model.FFields;
 
-import backtype.storm.generated.StreamInfo;
+import com.twitter.heron.api.generated.TopologyAPI.StreamSchema.Builder;
+import com.twitter.heron.api.generated.TopologyAPI.StreamSchema.KeyType;
+
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.topology.IComponent;
 import backtype.storm.topology.IRichSpout;
@@ -63,21 +67,32 @@ public class SpoutSource implements ISource, Serializable {
 	public void nextTuple() {
 		s.nextTuple();
 	}
-
+	
 	@Override
 	public FFields getOutputFields() {
+		com.twitter.heron.api.topology.OutputFieldsGetter delegate = new com.twitter.heron.api.topology.OutputFieldsGetter();
+		
 		// storm.tri dent.util.Tri dentUtils
 		//			public static Fields getSingleOutputStreamFields(IComponent component) {
-		OutputFieldsGetter getter = new OutputFieldsGetter();
+		OutputFieldsGetter getter = new OutputFieldsGetter(delegate);
 		s.declareOutputFields(getter);
-		Map<String, StreamInfo> declaration = getter.getFieldsDeclaration();
+		Map<String, Builder> declaration = delegate.getFieldsDeclaration();
 		if(declaration.size()!=1) {
 			throw new RuntimeException("Flexy only supports components that emit a single stream");
 		}
-		StreamInfo si = declaration.values().iterator().next();
-		if(si.is_direct()) {
-			throw new RuntimeException("Flexy does not support direct streams");
+		Builder builder = declaration.values().iterator().next();
+		
+		// FIXME: Not sure how to check this or if we'll even get here...
+//		if(builder.si.is_direct()) {
+//			throw new RuntimeException("Flexy does not support direct streams");
+//	    }
+//		return new FFields(si.get_output_fields());
+		
+		List<String> fieldStrings = new ArrayList<String>(builder.getKeysCount());
+		for (KeyType s : builder.getKeysList()) {
+			fieldStrings.add(s.getKey());
 		}
-		return new FFields(si.get_output_fields());
+		
+		return new FFields(fieldStrings);
 	}
 }

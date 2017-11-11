@@ -28,11 +28,8 @@ import java.util.List;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 import org.apache.pig.piggybank.squeal.flexy.oper.CombinePersist;
-import org.apache.pig.data.DataType;
 import org.apache.pig.impl.io.NullableTuple;
 import org.apache.pig.impl.util.Pair;
-
-import backtype.storm.utils.WritableUtils;
 
 public class CombineTupleWritable implements Writable, IPigIdxState<CombineTupleWritable> {
 	private List<Writable> values;
@@ -47,7 +44,7 @@ public class CombineTupleWritable implements Writable, IPigIdxState<CombineTuple
 
 	@Override
 	public void write(DataOutput out) throws IOException {
-		WritableUtils.writeVInt(out, values.size());
+		out.writeInt(values.size());
 		for (int i = 0; i < values.size(); ++i) {
 			Text.writeString(out, values.get(i).getClass().getName());
 		}
@@ -58,7 +55,7 @@ public class CombineTupleWritable implements Writable, IPigIdxState<CombineTuple
 
 	@Override
 	public void readFields(DataInput in) throws IOException {
-		int card = WritableUtils.readVInt(in);
+		int card = in.readInt();
 		values = new ArrayList<Writable>(card);
 		Class<? extends Writable>[] cls = new Class[card];
 		try {

@@ -27,6 +27,7 @@ import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.pig.piggybank.squeal.backend.storm.MonkeyPatch;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology;
 import org.apache.pig.piggybank.squeal.flexy.FlexyTopology.IndexedEdge;
 import org.apache.pig.piggybank.squeal.flexy.components.IOutputCollector;
@@ -39,7 +40,6 @@ import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
 import backtype.storm.generated.GlobalStreamId;
-import backtype.storm.generated.Grouping;
 import backtype.storm.spout.ISpoutWaitStrategy;
 import backtype.storm.task.IMetricsContext;
 import backtype.storm.task.OutputCollector;
@@ -185,7 +185,7 @@ public class FlexyBolt extends BaseRichBolt {
 		}
 		
 	}
-
+	
 	@Override
 	public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
 		// Create the execution pipeline.
@@ -198,15 +198,7 @@ public class FlexyBolt extends BaseRichBolt {
 		this.collector = collector;
 		
 		// Determine how many coord messages to expect.
-		int c = 0;
-		for (Entry<GlobalStreamId, Grouping> prev : 
-			context.getSources(context.getThisComponentId()).entrySet()) {
-			if (prev.getKey().get_streamId().equals("coord")) {
-				c += context.getComponentTasks(prev.getKey().get_componentId()).size();
-			}
-//			log.info(getName() + " || " + prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
-		}
-		expectedCoord = c;
+		expectedCoord = MonkeyPatch.getCoordCount(context);
 		
 		if (stormConf.containsKey(CRASH_ON_FAILURE_CONF)) {
 			String v = stormConf.get(CRASH_ON_FAILURE_CONF).toString().substring(0, 1);

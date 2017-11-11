@@ -52,7 +52,10 @@ import org.apache.pig.piggybank.squeal.flexy.oper.MakePigTuples;
 import org.joda.time.DateTime;
 import org.mortbay.util.ajax.JSON;
 
-import backtype.storm.generated.StreamInfo;
+import com.twitter.heron.api.generated.TopologyAPI.StreamSchema.Builder;
+import com.twitter.heron.api.generated.TopologyAPI.StreamSchema.KeyType;
+import com.twitter.heron.shaded.com.google.protobuf.Descriptors.FieldDescriptor;
+
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.OutputFieldsGetter;
 
@@ -153,13 +156,13 @@ public class SpoutWrapper extends LoadFunc implements LoadMetadata, LoadCaster {
 		Schema s = new Schema();
 		IRichSpout l = getSpout();
 	
-		OutputFieldsGetter declarer = new OutputFieldsGetter();
-		
+		com.twitter.heron.api.topology.OutputFieldsGetter delegate = new com.twitter.heron.api.topology.OutputFieldsGetter();
+				
+		OutputFieldsGetter declarer = new OutputFieldsGetter(delegate);
 		l.declareOutputFields(declarer);
-		
-		for (Entry<String, StreamInfo> e : declarer.getFieldsDeclaration().entrySet()) {
-			for (String field : e.getValue().get_output_fields()) {
-				s.add(new Schema.FieldSchema(field, DataType.BYTEARRAY));
+		for (Entry<String, Builder> e : delegate.getFieldsDeclaration().entrySet()) {
+			for (KeyType field : e.getValue().getKeysList()) {
+				s.add(new Schema.FieldSchema(field.getKey(), DataType.BYTEARRAY));
 			}
 		}
 		

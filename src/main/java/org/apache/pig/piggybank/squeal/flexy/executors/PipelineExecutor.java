@@ -41,8 +41,6 @@ import org.apache.pig.piggybank.squeal.flexy.model.FStream;
 import org.apache.pig.piggybank.squeal.flexy.model.FStream.NodeType;
 import org.jgrapht.graph.DefaultDirectedGraph;
 
-import com.esotericsoftware.kryo.io.Input;
-
 public class PipelineExecutor implements ICollector {
 	private FStream cur;
 	private List<PipelineExecutor> children;
@@ -91,7 +89,7 @@ public class PipelineExecutor implements ICollector {
 			binner.prepare(context, collector, exposedName);
 		}
 
-		binDecoder = new Binner.BinDecoder(context);
+		binDecoder = new Binner.BinDecoder();
 
 		if (parent_tf == null && cur.getType() != NodeType.SPOUT) {
 //			log.info("NULL tf: " + cur + " " + flexyBolt.getInputSchema());
@@ -267,11 +265,14 @@ public class PipelineExecutor implements ICollector {
 		case GROUPBY:
 		case PROJECTION:
 			// Decode the tuples within the bin.
-			Input in = new Input(input.getBinary(1));
 			List<Object> list;
-			while (null != (list = binDecoder.decodeList(in))) {
-				// Create the appropriate tuple and move along.
-				execute(parent_root_tf.create(list), input);
+			try {
+				while (null != (list = binDecoder.decodeList(input.getBinary(1)))) {
+					// Create the appropriate tuple and move along.
+					execute(parent_root_tf.create(list), input);
+				}
+			} catch (IOException e1) {
+				throw new RuntimeException(e1);
 			}
 
 			break;
