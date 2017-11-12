@@ -77,8 +77,16 @@ import org.jgrapht.graph.DefaultDirectedGraph;
 
 import com.twitter.heron.api.HeronTopology;
 import com.twitter.heron.api.generated.TopologyAPI;
+import com.twitter.heron.api.generated.TopologyAPI.Bolt;
+import com.twitter.heron.api.generated.TopologyAPI.Config.KeyValue;
+import com.twitter.heron.api.generated.TopologyAPI.InputStream;
+import com.twitter.heron.api.generated.TopologyAPI.StreamSchema.KeyType;
+import com.twitter.heron.api.generated.TopologyAPI.OutputStream;
 import com.twitter.heron.api.generated.TopologyAPI.Spout;
 import com.twitter.heron.api.generated.TopologyAPI.Topology;
+import com.twitter.heron.api.utils.TopologyUtils;
+import com.twitter.heron.shaded.com.google.protobuf.Descriptors.EnumDescriptor;
+import com.twitter.heron.shaded.com.google.protobuf.Descriptors.FieldDescriptor;
 import com.twitter.heron.shaded.org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;
@@ -473,6 +481,14 @@ public class Main {
 		return builder.createTopology();
 	}
 	
+	List<String> keyListToList(List<KeyType> kl) {
+		List<String> fieldStrings = new ArrayList<String>(kl.size());
+		for (KeyType s : kl) {
+			fieldStrings.add(s.getKey());
+		}
+		return fieldStrings;
+	}
+	
 	void explain(PrintStream ps) {
 		ps.println("#--------------------------------------------------");
         ps.println("# Storm Topology                                   ");
@@ -492,42 +508,37 @@ public class Main {
                 getTopology();
                
 		for (Spout ent : htopo.getSpoutsList()) {
-			System.err.println("Main.explain: " + ent + " " + ent.getComp().getConfig().getKvsList());
-			com.twitter.heron.api.generated.TopologyAPI.Config v = ent.getComp().getConfig();
 			
-			System.err.println("VV: " + v);
-			
-        	ps.println(ent.getComp().getName() + " parallel: " + ent.getComp().getConfig().getKvsList()); // + ent.getComp().getConfig().getKvsList().get.get_common().get_parallelism_hint());
-//        	
-//        	SpoutSpec spec = ent.getValue();
-//        	
-//        	ps.println("Streams: ");
-//        	Map<String, StreamInfo> streams = spec.get_common().get_streams();
-//        	for (Entry<String, StreamInfo> ent2 : streams.entrySet()) {
-//        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-//        	}
+        	ps.println(ent.getComp().getName() + " parallel: " + TopologyUtils.getConfigWithDefault(
+        			ent.getComp().getConfig().getKvsList(), com.twitter.heron.api.Config.TOPOLOGY_COMPONENT_PARALLELISM, ""));
+
+        	ps.println("Streams: ");
+        	
+        	for (OutputStream output : ent.getOutputsList()) {
+        		ps.println("++ " + output.getStream().getId() + " " + keyListToList(output.getSchema().getKeysList()));        		
+        	}
         	
         	ps.println("#--------------------------------------------------");
         }
         
         ps.println("# Bolts:                                           ");
-//        
-//        for (Entry<String, Bolt> ent : topo.get_bolts().entrySet()) {
-//        	ps.println(ent.getKey() + " parallel: " + ent.getValue().get_common().get_parallelism_hint());
-//        	
-//        	ps.println("Inputs: ");
-//        	Map inputs = ent.getValue().get_common().get_inputs();        	
-//			for (Object k : inputs.keySet()) {
-//        		ps.println("** " + k + " " + inputs.get(k));
-//        	}
-//        	
-//        	ps.println("Outputs: ");
-//        	for (Entry<String, StreamInfo> ent2 : ent.getValue().get_common().get_streams().entrySet()) {
-//        		ps.println("++ " + ent2.getKey() + " " + ent2.getValue());
-//        	}
-//        	
-//        	ps.println("#--------------------------------------------------");
-//        }
+        
+        for (Bolt bolt : htopo.getBoltsList()) {
+        	ps.println(bolt.getComp().getName() + " parallel: " + TopologyUtils.getConfigWithDefault(
+        			bolt.getComp().getConfig().getKvsList(), com.twitter.heron.api.Config.TOPOLOGY_COMPONENT_PARALLELISM, ""));
+        	
+        	ps.println("Inputs: ");
+			for (InputStream k : bolt.getInputsList()) {
+        		ps.println("** " + k.getStream().getComponentName() + " " + k.getStream().getId() + " " + k.getGtype() + " " + keyListToList(k.getGroupingFields().getKeysList()));
+        	}
+        	
+        	ps.println("Outputs: ");
+        	for (OutputStream out : bolt.getOutputsList()) {
+        		ps.println("++ " + out.getStream().getComponentName() + " " + keyListToList(out.getSchema().getKeysList()));
+        	}
+        	
+        	ps.println("#--------------------------------------------------");        	
+        }
 	}
 	
 	void runTestCluster(String topology_name, long wait_time, boolean debug) {

@@ -31,6 +31,7 @@ public class TestFlexyModel extends SquealTestBase {
     	// Make sure FetchOnly is properly disabled.
     	ByteArrayOutputStream baos = new ByteArrayOutputStream();
     	pig.explain("x", new PrintStream(baos));
+//    	System.err.println(baos.toString());
     	assertTrue(baos.toString().matches("(?si).*TestSpout-x parallel: 3.*"));
     	
     	// Ensure that parallelism doesn't bleed to the spout.
@@ -63,7 +64,7 @@ public class TestFlexyModel extends SquealTestBase {
     	// Now check things when a group by is thrown in.
     	baos.reset();
     	pig.explain("count_gr", new PrintStream(baos));
-    	System.err.print(new String(baos.toByteArray()));
+//    	System.err.print(new String(baos.toByteArray()));
     	assertTrue(baos.toString().matches("(?si).*b0-TestSpout parallel: 3.*"));
     	assertTrue(baos.toString().matches("(?si).*b1-x-count_gr parallel: 15.*"));
     	assertTrue(baos.toString().matches("(?si).*b2-count_gr parallel: 20.*"));
