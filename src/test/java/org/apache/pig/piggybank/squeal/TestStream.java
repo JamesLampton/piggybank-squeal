@@ -250,7 +250,7 @@ DEBUG: (6,2,1)
     	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMIN(count.wc) AS min_wc, org.apache.pig.piggybank.evaluation.KMAX(count.wc)  AS max_wc;");
 //    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMAX(count.wc) AS max_wc;");
     	
-//    	explain("stats");
+//    	explain("stats"); System.exit(1);
     	registerStore("stats", output, true);
     	
     	List<String> expected = new ArrayList<String>();

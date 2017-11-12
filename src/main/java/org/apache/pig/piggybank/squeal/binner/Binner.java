@@ -20,6 +20,7 @@ package org.apache.pig.piggybank.squeal.binner;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,7 +52,6 @@ import backtype.storm.utils.Utils;
 
 public class Binner {
 	
-	// FIXME: Get rid of the Kryo stuff.  Use Hadoop's serialization directly.
 	public static final String WRITE_THRESH_CONF = "flexy.binner.write.threshold";
 	int _write_thresh = 64*1024;
 	private static final Log log = LogFactory.getLog(Binner.class);
@@ -88,34 +88,31 @@ public class Binner {
 			this.gr = gr;
 		}
 		
-		public void prepare(WorkerTopologyContext context,
+		public void prepare(TopologyContext d, WorkerTopologyContext context,
 				GlobalStreamId stream, List<Integer> targetTasks) {
 			
-			// FIXME: I'll have to grab these from somewhere...
-//			if (gr.is_set_fields()) {
-//				gr_fields = new FFields(gr.get_fields());
-//			} else if (gr.is_set_custom_serialized()) {
+			if ( gr == gr.FIELDS) {
+				gr_fields = new FFields(d.getComponentOutputFields(stream.get_componentId(), stream.get_streamId()).toList());
+			} else if (gr == gr.CUSTOM) {
+				// FIXME: HERON I'll have to grab these from somewhere...
 //				wrapped = (CustomStreamGrouping) Utils.deserialize(gr.get_custom_serialized());
-//				wrapped.prepare(context, stream, targetTasks);
-//			}
-			
+//				wrapped.prepare(context, stream, targetTasks);				
+			}
+						
 			this.targetTasks = targetTasks;
 			num_tasks = targetTasks.size();
 		}
 
-		public List<Integer> chooseTasks(int taskId, final IFlexyTuple tup) {
-			// FIXME: I'll have to wait on this...
-			return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
-			
-//			if (gr.is_set_fields()) {
-//				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
-//			} else if (gr.is_set_shuffle()) {
-//				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
-//			} else if (wrapped != null) {
-//				return wrapped.chooseTasks(taskId, tup.getValues());
-//			} else {
-//				throw new RuntimeException("Unknown grouping type: " + gr.getSetField());
-//			}
+		public List<Integer> chooseTasks(int taskId, final IFlexyTuple tup) {			
+			if (gr == gr.FIELDS) {
+				return new ArrayList() {{ add(targetTasks.get(Math.abs(tup.select(gr_fields).hashCode()) % num_tasks)); }};
+			} else if (gr == gr.SHUFFLE) {
+				return new ArrayList() {{ add(targetTasks.get(r.nextInt(num_tasks))); }};
+			} else if (wrapped != null) {
+				return wrapped.chooseTasks(taskId, tup.getValues());
+			} else {
+				throw new RuntimeException("Unknown grouping type: " + gr);
+			}
 		}
 		
 	}
@@ -127,15 +124,12 @@ public class Binner {
 		taskId = context.getThisTaskId();
 		
 		// Determine the downstream subscribers.
-		//STORM: for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {
 		TopologyContext d = MonkeyPatch.getTopologyContextDelegate(context.getStormTopologyContext());
 		
-		// Not sure what I'll be looking at here...
-		System.err.println(d.getTargets(exposedName));
-		
-		for (Entry<String, Grouping> ent : d.getTargets(exposedName).get("FIXME:Binner.prepare()").entrySet()) {
+		//STORM: for (Entry<String, Grouping> ent : context.getStormTopologyContext().getThisTargets().get(exposedName).entrySet()) {				
+		for (Entry<String, Grouping> ent : d.getTargets(context.getThisComponentId()).get(exposedName).entrySet()) {
 			Grouper gr = new Grouper(ent.getValue());
-			gr.prepare(context.getStormTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
+			gr.prepare(d, context.getStormTopologyContext(), new GlobalStreamId(context.getThisComponentId(), exposedName), 
 					context.getStormTopologyContext().getComponentTasks(ent.getKey()));
 			groupings.add(gr);
 		}
@@ -146,6 +140,7 @@ public class Binner {
 	}
 
 	public void emit(IFlexyTuple tup, Object anchor) throws IOException {
+		System.out.println("emit(" + tup + ", " + anchor + ")");
 		for (Grouper gr : groupings) {
 			// Calculate the destinations.
 			for (Integer dest : gr.chooseTasks(taskId, tup)) {				
@@ -157,13 +152,16 @@ public class Binner {
 				}
 
 				// write the data out.
-				// FIXME: where is this deserialized?
 				List<Object> vals = tup.getValues();
 				curOut.dbuf.writeInt(vals.size());
 				for (int i = 0; i < vals.size(); i++) {
-					byte[] buf = ps.serialize(vals.get(i));
-					curOut.dbuf.writeInt(buf.length);
-					curOut.dbuf.write(buf);
+					if (vals.get(i) == null) {
+						curOut.dbuf.writeInt(0);
+					} else {
+						byte[] buf = ps.serialize(vals.get(i));
+						curOut.dbuf.writeInt(buf.length);
+						curOut.dbuf.write(buf);
+					}
 				}
 
 				// Determine if we need to flush this buffer
@@ -177,7 +175,7 @@ public class Binner {
 
 	private void _flush(OutCollector curOut, Object anchor) {
 		// Emit curOut.
-		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, curOut.dbuf.getData()));
+		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, Arrays.copyOfRange(curOut.dbuf.getData(), 0, curOut.dbuf.getLength())));
 	}
 	
 	public void flush(Object inputAnchor) {
@@ -193,8 +191,14 @@ public class Binner {
 		DataInputBuffer dbuf = new DataInputBuffer();
 		PigSerializer ps = new PigSerializer();
 		
-		public List<Object> decodeList(byte[] in) throws IOException {
+		public void reset(byte[] in) {
 			dbuf.reset(in, in.length);
+		}
+		
+		public List<Object> decodeList() throws IOException {
+			if (dbuf.getPosition() == dbuf.getLength()) {
+				return null;
+			}
 			
 			int listLength = dbuf.readInt();
 			
@@ -202,11 +206,16 @@ public class Binner {
 			
 			for (int i = 0; i < listLength; i++) {
 				int bufLen = dbuf.readInt();
-				byte[] buf = new byte[bufLen];
-				dbuf.read(buf);
-				
-				ret.add(ps.deserialize(buf));
+				if (bufLen == 0) {
+					ret.add(null);
+				} else {
+					byte[] buf = new byte[bufLen];
+					dbuf.read(buf);
+					ret.add(ps.deserialize(buf));
+				}
 			}
+			
+			System.err.println("");
 			
 			return ret;
 		}

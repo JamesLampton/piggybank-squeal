@@ -53,7 +53,14 @@ public class PigSerializer implements ISerializer {
 				dbuf.writeByte(1);
 				dbuf.writeUTF(o.getClass().getName());
 				((Writable) o).write(dbuf);
+			} else if (o instanceof Integer) {
+				dbuf.writeByte(2);
+				dbuf.writeInt((int) o);
 			} else {
+				if (o == null) {
+					throw new RuntimeException("Unexpected null");
+				}
+				
 				throw new RuntimeException("Unexpected type: " + o.getClass());
 			}
 		} catch (IOException e) {
@@ -92,6 +99,8 @@ public class PigSerializer implements ISerializer {
 				Writable c = (Writable) Class.forName(cls).newInstance();
 				c.readFields(dis);
 				ret = c;
+			} else if (write_type == 2) {
+				ret = dis.readInt();
 			}
 			
 			return ret;

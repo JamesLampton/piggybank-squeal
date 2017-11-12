@@ -157,7 +157,7 @@ public abstract class SquealTestBase extends TestCase {
 		props.setProperty("pig.streaming.run.test.cluster", "true");
 		props.setProperty("pig.streaming.run.test.cluster.direct", "true");
 		props.setProperty("pig.streaming.run.test.cluster.wait_time", "25000");
-		//	    	props.setProperty("pig.streaming.debug", "true");
+//		props.setProperty("pig.streaming.debug", "true");
 
 	}
 

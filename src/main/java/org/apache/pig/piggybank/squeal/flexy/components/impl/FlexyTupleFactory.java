@@ -61,6 +61,12 @@ public class FlexyTupleFactory {
 	
 	class FlexyTupleImpl implements IFlexyTuple {
 
+		@Override
+		public String toString() {
+			return "FlexyTupleImpl [values=" + values + ", parent=" + parent
+					+ "]";
+		}
+
 		private ArrayList<Object> values;
 		private FlexyTupleImpl parent;
 

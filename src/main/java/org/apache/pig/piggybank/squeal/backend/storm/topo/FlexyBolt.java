@@ -23,6 +23,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Random;
 import java.util.TreeSet;
 
 import org.apache.commons.logging.Log;
@@ -119,7 +120,12 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public String getStormId() {
-			return (String) stormConf.get("storm.id");
+			String ret = (String) stormConf.get("storm.id");
+			if (ret == null) {
+				ret = "getStormId-" + (new Random()).nextInt();
+			}
+			
+			return ret;
 		}
 
 		@Override

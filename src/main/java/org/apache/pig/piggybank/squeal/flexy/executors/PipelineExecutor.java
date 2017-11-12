@@ -267,7 +267,8 @@ public class PipelineExecutor implements ICollector {
 			// Decode the tuples within the bin.
 			List<Object> list;
 			try {
-				while (null != (list = binDecoder.decodeList(input.getBinary(1)))) {
+				binDecoder.reset(input.getBinary(1));
+				while (null != (list = binDecoder.decodeList())) {
 					// Create the appropriate tuple and move along.
 					execute(parent_root_tf.create(list), input);
 				}

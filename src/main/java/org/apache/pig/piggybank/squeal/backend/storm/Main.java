@@ -534,7 +534,7 @@ public class Main {
         	
         	ps.println("Outputs: ");
         	for (OutputStream out : bolt.getOutputsList()) {
-        		ps.println("++ " + out.getStream().getComponentName() + " " + keyListToList(out.getSchema().getKeysList()));
+        		ps.println("++ " + out.getStream().getId() + " " + keyListToList(out.getSchema().getKeysList()));
         	}
         	
         	ps.println("#--------------------------------------------------");        	
