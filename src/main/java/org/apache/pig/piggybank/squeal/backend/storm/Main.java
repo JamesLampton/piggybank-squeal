@@ -546,6 +546,7 @@ public class Main {
 		Config conf = new Config();
 		conf.put(Config.TOPOLOGY_WORKERS, 1);
 		conf.put(Config.TOPOLOGY_DEBUG, debug);
+		conf.setNumAckers(1);
 		
 		// Register a Serializer for any Writable.
 		registerSerializer(conf);

@@ -150,7 +150,6 @@ public class FlexyBolt extends BaseRichBolt {
 
 		@Override
 		public FFields getInputSchema() {
-			System.err.println("context: " + this);
 			return input_fields;
 		}
 
@@ -214,7 +213,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 	@Override
 	public void execute(Tuple input) {
-//		log.info("BOLT RECEIVED:" + input);
+//		System.out.println("FlexyBolt RECEIVED:" + input);
 		
 		try {
 			boolean send_coord = false;
@@ -260,6 +259,7 @@ public class FlexyBolt extends BaseRichBolt {
 				// If we have received coordination messages from all our preceding nodes, start releasing.
 				if (seenCoord == expectedCoord) {
 //					log.info(getName() + " seenCoord " + seenCoord + " of " + expectedCoord + " " + coord_type);
+//					System.out.println(getName() + " seenCoord " + seenCoord + " of " + expectedCoord + " " + coord_type);
 					// Release the remaining tuples.
 					pipeline.flush(input);
 					if (coord_type > 1) {
@@ -271,6 +271,7 @@ public class FlexyBolt extends BaseRichBolt {
 					seenCoord = 0;
 				}
 			} else {
+//				System.out.println("FlexyBolt:" + getName() + " Got Data");
 				if (tFactory == null) {
 					// FIXME: Should we know this in prepare or the like?
 					tFactory = FlexyTupleFactory.newFreshOutputFactory(new FFields(input.getFields().toList()));
@@ -285,7 +286,7 @@ public class FlexyBolt extends BaseRichBolt {
 
 			if (send_coord) {			
 				long batchid = input.getLong(0);
-				//			log.info("Sending coord " + batchid + " " + coord_type);
+//				System.out.println("Sending coord " + batchid + " " + coord_type);
 
 				// Send coord messages. -- Anchored.
 				collector.emit("coord", input, new Values(batchid, coord_type, new FlexyTracer()));

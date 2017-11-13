@@ -103,6 +103,7 @@ public class FlexyMasterSpout extends BaseRichSpout {
 	@Override
     public void ack(Object msgId) {
 //		log.info(cur_batch + " ack: " + cur_state);
+//		System.out.println("FlexyMasterSpout: " + cur_batch + " ack: " + cur_state);
 		// Successful complete drops us back to go.
 		if (cur_state >= 3) {
 			cur_state = 0;

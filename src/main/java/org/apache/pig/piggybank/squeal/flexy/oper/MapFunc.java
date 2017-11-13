@@ -161,7 +161,7 @@ public class MapFunc extends FlexyBaseFunction {
 	    		key.setIndex(index);
 	    		val.setIndex(index);
 
-//	    		System.out.println("Emit k: " + key + " -- v: " + val);
+//	    		System.out.println("MapFunc:Emit k: " + key + " -- v: " + val);
 	    		collector.emit(new FValues(key, val, tive));    		
 	    	} else {
 	    		collector.emit(new FValues(null, new NullableTuple(tuple), tive));

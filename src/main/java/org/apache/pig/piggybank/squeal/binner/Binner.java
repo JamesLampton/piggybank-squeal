@@ -92,7 +92,10 @@ public class Binner {
 				GlobalStreamId stream, List<Integer> targetTasks) {
 			
 			if ( gr == gr.FIELDS) {
-				gr_fields = new FFields(d.getComponentOutputFields(stream.get_componentId(), stream.get_streamId()).toList());
+				// Okay, the specific grouping fields is burried in the context / inputs.  For Pig-Squeal we only ever group on the first field
+				// so I'm going to hack it...
+				gr_fields = new FFields(d.getComponentOutputFields(stream.get_componentId(), stream.get_streamId()).toList().get(0));
+//				System.out.println("gr_fields:" + gr_fields);
 			} else if (gr == gr.CUSTOM) {
 				// FIXME: HERON I'll have to grab these from somewhere...
 //				wrapped = (CustomStreamGrouping) Utils.deserialize(gr.get_custom_serialized());
@@ -140,7 +143,7 @@ public class Binner {
 	}
 
 	public void emit(IFlexyTuple tup, Object anchor) throws IOException {
-		System.out.println("emit(" + tup + ", " + anchor + ")");
+//		System.out.println("emit(" + tup + ", " + anchor + ")");
 		for (Grouper gr : groupings) {
 			// Calculate the destinations.
 			for (Integer dest : gr.chooseTasks(taskId, tup)) {				
@@ -174,6 +177,7 @@ public class Binner {
 	}
 
 	private void _flush(OutCollector curOut, Object anchor) {
+		log.info("Flushed: " + curOut.dbuf.size());
 		// Emit curOut.
 		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, Arrays.copyOfRange(curOut.dbuf.getData(), 0, curOut.dbuf.getLength())));
 	}

@@ -251,7 +251,7 @@ public class PipelineExecutor implements ICollector {
 	}
 
 	public boolean execute(IFlexyTuple input) {
-		//		log.info("execute tuple: " + input);
+//		System.out.println(cur.getName() + " execute tuple: " + input);
 		boolean ret = false;
 
 		switch (cur.getType()) {
@@ -269,6 +269,7 @@ public class PipelineExecutor implements ICollector {
 			try {
 				binDecoder.reset(input.getBinary(1));
 				while (null != (list = binDecoder.decodeList())) {
+//					System.out.println("execute decoded: " + list);
 					// Create the appropriate tuple and move along.
 					execute(parent_root_tf.create(list), input);
 				}
@@ -288,7 +289,7 @@ public class PipelineExecutor implements ICollector {
 				long last_txid = txid - 1;
 				if(idsMap.containsKey(last_txid)) {
 					if (failed && idsMap.get(last_txid).size() > 0) { 
-						//						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
+//						log.info("Flushing tuples: " + last_txid + " " + failed + " " + idsMap.get(last_txid).size());
 					}
 					for (Object msgId : idsMap.remove(last_txid)) {
 						if (failed) {
@@ -351,7 +352,7 @@ public class PipelineExecutor implements ICollector {
 
 	@Override
 	public void emit(List<Object> values) {
-		//		log.info("Emit: " + cur + " --> " + values + " --> " + exposedName);
+//		System.out.println("PipelineExecutor.emit: " + cur + " --> " + values + " --> " + exposedName);
 		IFlexyTuple tup = null;
 		// Use the appropriate output factory to create the next tuple.
 		switch (cur.getType()) {
