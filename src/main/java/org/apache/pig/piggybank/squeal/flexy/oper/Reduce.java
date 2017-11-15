@@ -274,11 +274,12 @@ public class Reduce extends FlexyBaseFunction {
 				tuples_in += tuples.size();
 				fc.switchToCur();
 				runReduce(key, tuples, fc);
+				
+//				System.out.println("TriReduce |cur_input|: " + tuples.size() + " |cur_output| : " + fc.cur_res.size());
+
 			} catch (Exception e) {
 				throw new RuntimeException("Error processing: " + tri_tuple, e);
-			}
-			
-//			System.out.println("TriReduce |cur_input|: " + tuples.size() + " |cur_output| : " + fc.cur_res.size());
+			}			
 
 			// Emit positive and negative values.
 			fc.emitValues();

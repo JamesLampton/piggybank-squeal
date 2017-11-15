@@ -143,7 +143,7 @@ public class Binner {
 	}
 
 	public void emit(IFlexyTuple tup, Object anchor) throws IOException {
-//		System.out.println("emit(" + tup + ", " + anchor + ")");
+//		System.out.println("Binner.emit(" + tup + ", " + anchor + ")");
 		for (Grouper gr : groupings) {
 			// Calculate the destinations.
 			for (Integer dest : gr.chooseTasks(taskId, tup)) {				
@@ -218,8 +218,6 @@ public class Binner {
 					ret.add(ps.deserialize(buf));
 				}
 			}
-			
-			System.err.println("");
 			
 			return ret;
 		}

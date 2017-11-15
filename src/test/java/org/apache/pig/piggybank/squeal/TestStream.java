@@ -21,6 +21,7 @@ package org.apache.pig.piggybank.squeal;
 import org.apache.pig.data.Tuple;
 import org.apache.pig.impl.util.StorageUtil;
 import org.junit.Test;
+
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
@@ -166,6 +167,7 @@ DEBUG: (1,19,1)
 DEBUG: (6,2,1)
     	 */
 //    	explain("hist");
+//    	if (1 == 1) throw new RuntimeException("BOOP");
     	registerStore("hist", output, true);
     	
     	List<String> expected = new ArrayList<String>();
@@ -200,6 +202,7 @@ DEBUG: (6,2,1)
     	pig.registerQuery("count = FOREACH count_gr GENERATE group AS word, COUNT(x) AS wc;");
 //    	pig.registerQuery("count = FILTER count by wc > 0"); // FIXME: BUGGG!!!! necessary due to issue with combiner handling oddity.
 
+//    	if (1 == 1) throw new RuntimeException("BOOP");
     	registerStore("count", output, true);
 //    	explain("count");
     	
@@ -249,6 +252,9 @@ DEBUG: (6,2,1)
 //    	pig.registerQuery("stats = FOREACH all_gr GENERATE count.wc;");
     	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMIN(count.wc) AS min_wc, org.apache.pig.piggybank.evaluation.KMAX(count.wc)  AS max_wc;");
 //    	pig.registerQuery("stats = FOREACH all_gr GENERATE org.apache.pig.piggybank.evaluation.KMAX(count.wc) AS max_wc;");
+
+//    	explain("count"); System.exit(1);
+//    	registerStore("count", output, true);
     	
 //    	explain("stats"); System.exit(1);
     	registerStore("stats", output, true);

@@ -179,7 +179,7 @@ public class PipelineExecutor implements ICollector {
 
 	public void flush(Object inputAnchor) {	
 		anchor = inputAnchor;
-
+		
 		switch (cur.getType()) {
 		case FUNCTION:
 		case PROJECTION:
@@ -188,7 +188,7 @@ public class PipelineExecutor implements ICollector {
 			// Do nothing.
 			break;
 		case GROUPBY:
-			//			log.info("flush: " + cur);
+//			System.err.println("PipeLineExecutor.flush: " + cur);
 			if (cur.getIsStage0Agg()) {
 				stage0Exec.flush();
 			} else {
@@ -213,7 +213,7 @@ public class PipelineExecutor implements ICollector {
 	}
 
 	private void execute(IFlexyTuple tup, Object anchor) {
-		//		log.info("execute: " + cur + " " + tup);
+//		log.info("Pipeline.execute: " + cur + " " + tup);
 
 		this.anchor = anchor;
 		try {

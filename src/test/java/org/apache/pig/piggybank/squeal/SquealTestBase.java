@@ -82,7 +82,7 @@ public abstract class SquealTestBase extends TestCase {
 		List<byte[]> results = new ArrayList<byte[]>();
 		q.drainTo(results);
 
-		System.out.println("Fetched q@" + qName + " == " + q.hashCode() + " result count: " + results.size());
+//		System.out.println("Fetched q@" + qName + " == " + q.hashCode() + " result count: " + results.size());
 
 		// Parse the results into tuples, then run the merge.
 		Map<Tuple, Integer> mt = new HashMap<Tuple, Integer>();
@@ -157,6 +157,7 @@ public abstract class SquealTestBase extends TestCase {
 		props.setProperty("pig.streaming.run.test.cluster", "true");
 		props.setProperty("pig.streaming.run.test.cluster.direct", "true");
 		props.setProperty("pig.streaming.run.test.cluster.wait_time", "25000");
+//		props.setProperty("pig.streaming.run.test.cluster.wait_time", "25000000");
 		props.setProperty("pig.streaming.debug", "true");
 		
 	}

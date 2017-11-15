@@ -42,7 +42,7 @@ public class TestStore extends PigStorage {
 	public void putNext(Tuple t) throws IOException {
 		if (q == null) {
 			q = InMemTestQueue.getQueue(qName);
-//			System.err.println("Fetched q@" + qName + " == " + q.hashCode());
+//			System.out.println("Fetched q@" + qName + " == " + q.hashCode());
 		}
 		q.add(t.toDelimitedString("\t").getBytes());
 		

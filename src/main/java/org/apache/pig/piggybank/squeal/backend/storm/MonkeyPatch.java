@@ -19,11 +19,13 @@
 package org.apache.pig.piggybank.squeal.backend.storm;
 
 import java.lang.reflect.Field;
+import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.MapReduceOper;
 import org.apache.pig.impl.PigContext;
 
+import com.twitter.heron.api.generated.TopologyAPI.Grouping;
 import com.twitter.heron.api.generated.TopologyAPI.StreamId;
 
 import backtype.storm.generated.GlobalStreamId;
@@ -98,13 +100,17 @@ public class MonkeyPatch {
 		// For Heron, we need to dig into the topology context to grab the hidden delegate.
 		com.twitter.heron.api.topology.TopologyContext delegate = getTopologyContextDelegate(context);
 		
+		// Expanded for debug purposes.
 		int c = 0;
-		for (Entry<StreamId, com.twitter.heron.api.generated.TopologyAPI.Grouping> prev : delegate.getSources(context.getThisComponentId()).entrySet()) {
-			if (prev.getKey().getId().equals("coord")) {
-				c += context.getComponentTasks(prev.getKey().getId()).size();
+		String cid = context.getThisComponentId();
+		Map<StreamId, Grouping> sources = delegate.getSources(cid);
+		for (Entry<StreamId, com.twitter.heron.api.generated.TopologyAPI.Grouping> prev : sources.entrySet()) {
+			StreamId prev_k = prev.getKey();
+			String prev_id = prev_k.getId();
+			if (prev_id.equals("coord")) {
+				c += context.getComponentTasks(prev.getKey().getComponentName()).size();
 			}
-//			log.info(getName() + " || " + prev.getKey().get_streamId() + " ---> " + context.getThisComponentId());
-		}
+		}		
 		return c;
 	}
 }

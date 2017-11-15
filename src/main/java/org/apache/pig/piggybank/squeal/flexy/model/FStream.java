@@ -291,7 +291,11 @@ public class FStream implements Serializable {
 	}
 	
 	public String toString() {
-		return this.getClass().getCanonicalName() + "@" + Integer.toHexString(hashCode()) + " " + nodeType + " : " + getName();
+		return 
+				this.getClass().getCanonicalName() + "@" + 
+				Integer.toHexString(hashCode()) + " " + 
+				nodeType + " " + (nodeType == NodeType.FUNCTION ? getFunc() : "") + 
+				" : " + getName();
 	}
 
 	public IFunction getFunc() {
