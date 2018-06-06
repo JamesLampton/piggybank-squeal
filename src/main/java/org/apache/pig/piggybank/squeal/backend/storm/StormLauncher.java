@@ -161,7 +161,7 @@ public class StormLauncher extends Launcher {
 		}
 
 		if (pc.getProperties().getProperty("pig.streaming.topology.name", null) == null) {
-			pc.getProperties().setProperty("pig.streaming.topology.name", "PigStorm-" + php.getLeaves().get(0).getAlias());
+			pc.getProperties().setProperty("pig.streaming.topology.name", "pigsqueal-" + php.getLeaves().get(0).getAlias());
 		}
 		
 		// Encode the plan into the context for later retrieval.

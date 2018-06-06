@@ -2,6 +2,7 @@
 set pig.streaming.run.test.cluster.wait_time '60000';
 set pig.streaming.extra.conf 'test_hook.yaml';
 set pig.streaming.workers '4';
+set pig.streaming.jarfile 'testload.jar';
 
 -- Register the helper functions.
 
@@ -29,7 +30,7 @@ raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.
 set raw_msgs_shuffleBefore 'true';
 set raw_msgs_parallel '$numRunners';
 raw_msgs = FOREACH raw_msgs GENERATE sleepMap(), FLATTEN(genBag()) AS key;
-raw_msgs = FOREACH raw_msgs GENERATE (key % 2048) AS key;
+raw_msgs = FOREACH raw_msgs GENERATE (key % $keySpace) AS key;
 
 --describe raw_msgs;
 gr = GROUP raw_msgs BY key PARALLEL $numRunners;
@@ -40,5 +41,5 @@ c = FOREACH c GENERATE *, sleepReduce(), sleepState();
 rmf $output;
 
 --explain c;
-STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput', '["false"]');
---STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');
+--STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput', '["false"]');
+STORE c INTO '$output' USING org.apache.pig.piggybank.squeal.backend.storm.io.SignStoreWrapper('org.apache.pig.piggybank.squeal.backend.storm.io.DebugOutput');

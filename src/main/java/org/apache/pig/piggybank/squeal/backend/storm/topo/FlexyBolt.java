@@ -278,7 +278,7 @@ public class FlexyBolt extends BaseRichBolt {
 				}
 				
 				// Execute the assembly.
-				send_coord = pipeline.execute(tFactory.create(input.getValues()));
+				send_coord = pipeline.executeEntry(tFactory.create(input.getValues()), input);
 				if (send_coord) {
 //					System.err.println(getName() + " flushing due to send_coord.");
 					pipeline.flush(input);

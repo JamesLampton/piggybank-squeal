@@ -177,7 +177,7 @@ public class Binner {
 	}
 
 	private void _flush(OutCollector curOut, Object anchor) {
-		log.info("Flushed: " + curOut.dbuf.size());
+//		log.info("Flushed: " + curOut.dbuf.size());
 		// Emit curOut.
 		collector.emit(exposedName, (Tuple) anchor, new Values(curOut.aKey, Arrays.copyOfRange(curOut.dbuf.getData(), 0, curOut.dbuf.getLength())));
 	}

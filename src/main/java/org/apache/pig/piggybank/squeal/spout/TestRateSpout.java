@@ -41,13 +41,16 @@ public class TestRateSpout extends BaseRichSpout {
 	private SpoutOutputCollector collector;
 	private Random r;
 	private static final Log log = LogFactory.getLog(TestRateSpout.class);
-	int mult = 4;
 	int div = 60000;
+
+	public TestRateSpout(String ratePerSecond, String sizeInBytes, String perTime) {
+		rate = Integer.parseInt(ratePerSecond);
+		size = Integer.parseInt(sizeInBytes);
+		div = Integer.parseInt(perTime);
+	}
 	
 	public TestRateSpout(String ratePerSecond, String sizeInBytes) {
-		rate = Integer.parseInt(ratePerSecond)/mult;
-		size = Integer.parseInt(sizeInBytes);
-		div /= mult;
+		this(ratePerSecond, sizeInBytes, "60000");
 	}
 	
 	@Override

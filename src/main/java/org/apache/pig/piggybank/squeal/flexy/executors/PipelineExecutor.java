@@ -250,7 +250,7 @@ public class PipelineExecutor implements ICollector {
 		}
 	}
 
-	public boolean execute(IFlexyTuple input) {
+	public boolean executeEntry(IFlexyTuple input, Object entryAnchor) {
 //		System.out.println(cur.getName() + " execute tuple: " + input);
 		boolean ret = false;
 
@@ -258,7 +258,7 @@ public class PipelineExecutor implements ICollector {
 		case SHUFFLE:
 			// Pass through to children.
 			for (PipelineExecutor child : children) {
-				child.execute(input);
+				child.executeEntry(input, entryAnchor);
 			}
 			break;
 		case FUNCTION:
@@ -279,7 +279,7 @@ public class PipelineExecutor implements ICollector {
 
 			break;
 		case SPOUT:
-			this.anchor = input;
+			this.anchor = entryAnchor;
 			try {
 				//			log.info("execute tuple spout: " + input);
 				// Check on failures

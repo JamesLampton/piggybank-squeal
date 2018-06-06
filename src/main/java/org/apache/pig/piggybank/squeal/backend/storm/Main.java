@@ -110,6 +110,7 @@ public class Main {
 	protected static final String WORKERS_COUNT_KEY = "pig.streaming.workers";
 	protected static final String PIG_STREAMING_KEY_PREFIX = "pig.streaming";
 	protected static final String RUN_DIRECT_KEY = "pig.streaming.run.test.cluster.direct";
+	protected static final String TOPOLOGY_RUN_FORMAT_KEY = "pig.streaming.run.cluster.cmd";
 	protected static final String TOPOLOGY_NAME_KEY = "pig.streaming.topology.name";
 	protected static final String EXTRA_CONF_KEY = "pig.streaming.extra.conf";
 	protected static final String DEBUG_ENABLE_KEY = "pig.streaming.debug";
@@ -604,11 +605,14 @@ public class Main {
 	
 	public void launch(String jarFile) throws AlreadyAliveException, InvalidTopologyException, IOException {
 		if (pc.getProperties().getProperty(RUN_DIRECT_KEY, "false").equalsIgnoreCase("true")) {
-			String topology_name = pc.getProperties().getProperty(TOPOLOGY_NAME_KEY, "PigStorm-" + pc.getLastAlias());
+			String topology_name = getTopologyName();
 			runTestCluster(topology_name);
-		} else {			
+		} else {
+			// Determine if there is a format property.
+			String runFormat = pc.getProperties().getProperty(TOPOLOGY_RUN_FORMAT_KEY, "storm jar %s %s");
+			
 			// Execute "storm jar <jarfile> <this.classname>";
-			String exec = "storm jar " + jarFile + " " + this.getClass().getCanonicalName();
+			String exec = String.format(runFormat, jarFile, this.getClass().getCanonicalName());
 			System.out.println("Running: " + exec);
 			Process p = Runtime.getRuntime().exec(exec);
 			BufferedReader sout = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -630,7 +634,7 @@ public class Main {
 				throw new RuntimeException(e);
 			}
 	        if (ret != 0) {
-	        	throw new RuntimeException("storm jar returned with non-zero status: " + ret);
+	        	throw new RuntimeException(String.format("%s returned with non-zero status: %s", exec, ret));
 	        }
 		}
 	}
@@ -692,12 +696,16 @@ public class Main {
 		return o;
 	}
 	
+	public String getTopologyName() {
+		return pc.getProperties().getProperty(TOPOLOGY_NAME_KEY, "pigsqueal-" + pc.getLastAlias()).toLowerCase();
+	}
+	
 	public void runMain(String[] args) throws IOException, AlreadyAliveException, InvalidTopologyException {
 		/* Create the Pig context */
 		pc = (PigContext) getStuff("pigContext");
 		initFromPigContext(pc);
 		
-		String topology_name = pc.getProperties().getProperty(TOPOLOGY_NAME_KEY, "PigStorm-" + pc.getLastAlias());
+		String topology_name = getTopologyName();
 		
 		if (pc.getProperties().getProperty(RUN_TEST_CLUSTER_KEY, "false").equalsIgnoreCase("true")) {
 			runTestCluster(topology_name);
