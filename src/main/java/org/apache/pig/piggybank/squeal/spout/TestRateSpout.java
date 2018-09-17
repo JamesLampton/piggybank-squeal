@@ -42,6 +42,7 @@ public class TestRateSpout extends BaseRichSpout {
 	private Random r;
 	private static final Log log = LogFactory.getLog(TestRateSpout.class);
 	int div = 60000;
+	int callCount = 0;
 
 	public TestRateSpout(String ratePerSecond, String sizeInBytes, String perTime) {
 		rate = Integer.parseInt(ratePerSecond);
@@ -70,10 +71,13 @@ public class TestRateSpout extends BaseRichSpout {
 	public void nextTuple() {
 		long now = System.currentTimeMillis() / div;
 		
+		callCount += 1;
+		
 		if (now != lastMinute) {
-			log.info("sent " + curSent + " of " + rate + " during " + lastMinute);
+			log.info("sent " + curSent + " of " + rate + " during " + lastMinute + " callCount: " + callCount);
 			lastMinute = now;
 			curSent = 0;
+			callCount = 0;
 
 		}
 		

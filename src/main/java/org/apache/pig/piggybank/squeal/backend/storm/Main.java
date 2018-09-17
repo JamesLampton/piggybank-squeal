@@ -85,6 +85,7 @@ import com.twitter.heron.api.generated.TopologyAPI.OutputStream;
 import com.twitter.heron.api.generated.TopologyAPI.Spout;
 import com.twitter.heron.api.generated.TopologyAPI.Topology;
 import com.twitter.heron.api.utils.TopologyUtils;
+import com.twitter.heron.common.basics.ByteAmount;
 import com.twitter.heron.shaded.com.google.protobuf.Descriptors.EnumDescriptor;
 import com.twitter.heron.shaded.com.google.protobuf.Descriptors.FieldDescriptor;
 import com.twitter.heron.shaded.org.yaml.snakeyaml.Yaml;
@@ -655,8 +656,11 @@ public class Main {
 				fr.close();
 			} catch (IOException e) {
 				throw new RuntimeException(e);
-			}	
+			}
 		}
+		
+		// FIXME: Make this flexible...
+		//com.twitter.heron.api.Config.setContainerRamRequested(conf, ByteAmount.fromGigabytes(1));
 		
 		int workers = Integer.parseInt(pc.getProperties().getProperty(WORKERS_COUNT_KEY, "4"));
 		conf.setNumWorkers(workers);
@@ -665,6 +669,8 @@ public class Main {
 		
 		// Register a Serializer for any Writable.
 		registerSerializer(conf);
+		
+		System.out.println("Submitting with config: " + conf);
 		
 		passPigContextProperties(conf);
 		
