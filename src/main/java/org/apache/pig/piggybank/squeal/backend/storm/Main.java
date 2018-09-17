@@ -643,6 +643,11 @@ public class Main {
 	public void submitTopology(String topology_name) throws AlreadyAliveException, InvalidTopologyException {
 		Config conf = new Config();
 		
+		int workers = Integer.parseInt(pc.getProperties().getProperty(WORKERS_COUNT_KEY, "4"));
+		conf.setNumWorkers(workers);
+		int ackers = Integer.parseInt(pc.getProperties().getProperty(ACKERS_COUNT_KEY, "1"));
+		conf.setNumAckers(ackers);
+
 		String extraConf = pc.getProperties().getProperty(EXTRA_CONF_KEY, null);
 		if (extraConf != null) {
 			System.out.println("Loading additional configuration properties from: " + extraConf);
@@ -658,14 +663,6 @@ public class Main {
 				throw new RuntimeException(e);
 			}
 		}
-		
-		// FIXME: Make this flexible...
-		//com.twitter.heron.api.Config.setContainerRamRequested(conf, ByteAmount.fromGigabytes(1));
-		
-		int workers = Integer.parseInt(pc.getProperties().getProperty(WORKERS_COUNT_KEY, "4"));
-		conf.setNumWorkers(workers);
-		int ackers = Integer.parseInt(pc.getProperties().getProperty(ACKERS_COUNT_KEY, "1"));
-		conf.setNumAckers(ackers);
 		
 		// Register a Serializer for any Writable.
 		registerSerializer(conf);
