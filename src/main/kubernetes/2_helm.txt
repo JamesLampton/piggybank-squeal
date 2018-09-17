@@ -1,0 +1,41 @@
+curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > install-helm.sh
+chmod 700 install-helm.sh
+./install-helm.sh
+
+rm -fr ~/.helm
+helm init
+
+helm repo add heron-charts https://storage.googleapis.com/heron-charts
+
+kubectl create serviceaccount --namespace kube-system tiller
+kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
+kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
+
+kubectl get po --all-namespaces=true | grep tiller
+
+helm install heron-charts/heron --name flailing-dragon
+
+1. Start kubectl proxy
+   kubectl proxy -p 8001
+
+2. Verify you can access the api server
+   curl http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000/api/v1/version
+
+3. Verify you can access the heron ui
+   open http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-ui:8889
+   open http://localhost:8001/api/v1/namespaces/default/services/flailing-dragon-ui:8889/proxy
+
+4. Set your service url
+   heron config flailing-dragon set service_url http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000
+
+5. Submit an example topology
+   heron submit flailing-dragon ~/.heron/examples/heron-api-examples.jar com.twitter.heron.examples.api.AckingTopology acking
+
+6. Visit the heron ui and see if your example topology is running
+   open http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-ui:8889
+
+7. You can kill the example topology by 
+   heron kill flailing-dragon acking
+
+helm del --purge flailing-dragon
+kubectl delete pvc --all

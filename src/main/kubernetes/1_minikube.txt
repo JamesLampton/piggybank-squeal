@@ -1,0 +1,52 @@
+sudo dnf install kubernetes libvirt-daemon-kvm qemu-kvm nodejs docker
+sudo usermod -a -G libvirt $(whoami)
+newgrp libvirt
+
+curl -L https://github.com/docker/machine/releases/download/v0.12.0/docker-machine-`uname -s`-`uname -m` >/tmp/docker-machine
+chmod +x /tmp/docker-machine
+sudo cp /tmp/docker-machine /usr/local/bin/docker-machine
+
+curl -L https://github.com/dhiltgen/docker-machine-kvm/releases/download/v0.10.0/docker-machine-driver-kvm-centos7 >/tmp/docker-machine-driver-kvm
+chmod +x /tmp/docker-machine-driver-kvm
+sudo cp /tmp/docker-machine-driver-kvm /usr/local/bin/docker-machine-driver-kvm
+
+curl -Lo docker-machine-driver-kvm2 https://storage.googleapis.com/minikube/releases/latest/docker-machine-driver-kvm2 \
+&& chmod +x docker-machine-driver-kvm2 \
+&& sudo cp docker-machine-driver-kvm2 /usr/local/bin/ \
+&& rm docker-machine-driver-kvm2
+
+curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+chmod +x minikube
+sudo mv minikube /usr/local/bin/
+
+#minikube start --vm-driver kvm2 --memory 4096
+minikube start --vm-driver kvm2 --memory=7168 --cpus=5 --disk-size=20g
+
+
+kubectl create -f minikube_yaml/zookeeper.yaml
+# wait for zk to start.
+kubectl create -f minikube_yaml/bookkeeper.yaml
+kubectl create -f minikube_yaml/tools.yaml
+kubectl create -f minikube_yaml/apiserver.yaml
+
+kubectl proxy -p 8001
+
+curl http://localhost:8001/api/v1/proxy/namespaces/default/services/heron-apiserver:9000/api/v1/version
+curl http://127.0.0.1:8001/api/v1/namespaces/default/services/heron-apiserver:9000/proxy/api/v1/version
+browser: http://localhost:8001/api/v1/namespaces/default/services/heron-ui:8889/proxy/
+#http://localhost:8001/api/v1/proxy/namespaces/default/services/heron-apiserver:9000
+
+# minikube dashboard
+
+kubectl delete deployment.apps/heron-apiserver deployment.apps/heron-tracker statefulset.apps/zk daemonset.apps/bookie service/bookie service/heron-apiserver service/heron-tracker service/heron-ui service/zookeeper
+
+minikube service heron-apiserver --url
+
+
+
+
+
+kubectl run hello-world --replicas=5 --labels="run=load-balancer-example" --image=gcr.io/google-samples/node-hello:1.0  --port=8080
+#kubectl expose deployment hello-world --type=LoadBalancer --name=my-service
+kubectl expose deployment hello-world --type=NodePort --name=my-service
+#http://localhost:8001/api/v1/proxy/namespaces/default/services/my-service

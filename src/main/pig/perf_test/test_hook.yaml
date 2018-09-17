@@ -1,8 +1,9 @@
 #topology.spout.max.batch.size: 50
 #topology.spout.max.batch.size: 250
-topology.spout.max.batch.size: 1000
+#topology.spout.max.batch.size: 1000
+topology.spout.max.batch.size: 5000
 
-#topology.worker.childopts: '-XX:+HeapDumpOnOutOfMemoryError'
+topology.worker.childopts: '-XX:+HeapDumpOnOutOfMemoryError'
 
 # Rougly disable these...
 flexy.stage0.flush.interval: -1
@@ -15,4 +16,25 @@ flexy.stage1.cache.size: 10000
 # Disable the binner to measure the effect of message size vs tput
 #flexy.binner.write.threshold: 10
 
+# https://github.com/apache/incubator-heron/blob/516eca3023a25d341094a48337a677ca64b3c0a2/heron/packing/src/java/org/apache/heron/packing/roundrobin/RoundRobinPacking.java#L70
+
+#topology.stmgrs: 1
+#topology.workers: 1
+topology.container.cpu: 0.1
+topology.container.max.cpu.hint: 0.1
+#topology.container.ram: 134217728
+#topology.container.ram: 201326592 # 
+topology.container.ram: 1073741824 # 1GB
+# Hint for max amount of disk per container to be reserved for this topology.
+topology.container.padding.percentage: 0.1
+# Amount of RAM to pad each container. in bytes
+# set to 1 to split all the container ram across all components therin
+topology.container.ram.padding: 1
+#topology.container.ram.padding: 1073741824
+
+# Specific rammap of minimal values
+# 335544320
+topology.component.rammap: FlexyMaster:335544320,b1-raw_msgs-gr:335544320,b2-gr:335544320,b0-TestRateSpout:335544320
+
+#topology.container.disk: ...
 

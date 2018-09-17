@@ -9,15 +9,21 @@ export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
 aws s3api create-bucket --bucket piggybanksqueal-test-kops-state --region us-east-1
 aws s3api put-bucket-versioning --bucket piggybanksqueal-test-kops-state --versioning-configuration Status=Enabled
 
+export AWS_ACCESS_KEY_ID=$(aws configure get aws_access_key_id)
+export AWS_SECRET_ACCESS_KEY=$(aws configure get aws_secret_access_key)
 export NAME=piggybank-squeal-test.k8s.local
 export KOPS_STATE_STORE=s3://piggybanksqueal-test-kops-state
 
-aws ec2 describe-availability-zones --region us-east-2
+# k8s 1.10.5
 
-kops create cluster --zones us-east-2a --node-count=6 --node-size=t2.large ${NAME}
+#aws ec2 describe-availability-zones --region us-east-2
 
-kops edit cluster ${NAME}
+kops create cluster --zones us-east-2a --node-count=6 --node-size=t2.large ${NAME} --yes
 
+kops get --name $NAME -o yaml > $NAME.yml
+kops create cluster -f $NAME.yaml
+
+#kops edit cluster ${NAME}
 kops update cluster ${NAME} --yes
 
 Suggestions:
@@ -29,54 +35,13 @@ Suggestions:
 
 kops validate cluster
 
+kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/kubernetes-dashboard/v1.8.3.yaml
+http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
+kops get secrets kube --type secret -oplaintext
+
+kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/monitoring-standalone/v1.7.0.yaml
+
 kops delete cluster --name ${NAME}
 
 kops delete cluster --name ${NAME} --yes
  
-curl https://raw.githubusercontent.com/kubernetes/helm/master/scripts/get > install-helm.sh
-chmod 700 install-helm.sh
-./install-helm.sh
-
-helm init
-
-helm repo add heron-charts https://storage.googleapis.com/heron-charts
-
-kubectl create serviceaccount --namespace kube-system tiller
-kubectl create clusterrolebinding tiller-cluster-rule --clusterrole=cluster-admin --serviceaccount=kube-system:tiller
-kubectl patch deploy --namespace kube-system tiller-deploy -p '{"spec":{"template":{"spec":{"serviceAccount":"tiller"}}}}'
-
-helm install heron-charts/heron --name flailing-dragon
-
-1. Start kubectl proxy
-   kubectl proxy -p 8001
-
-2. Verify you can access the api server
-   curl http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000/api/v1/version
-
-3. Verify you can access the heron ui
-   open http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-ui:8889
-
-4. Set your service url
-   heron config flailing-dragon set service_url http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000
-
-5. Submit an example topology
-   heron submit flailing-dragon ~/.heron/examples/heron-api-examples.jar com.twitter.heron.examples.api.AckingTopology acking
-
-6. Visit the heron ui and see if your example topology is running
-   open http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-ui:8889
-
-7. You can kill the example topology by 
-   heron kill flailing-dragon acking
-
-docker run -i -t --rm=true --network=host heron/heron /bin/bash
-
-heron submit flailing-dragon --service-url http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000 examples/heron-api-examples.jar com.twitter.heron.examples.api.AckingTopology acking
-heron kill flailing-dragon --service-url http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000 acking
-
-docker run -ti --rm=true --network=host -v $PWD:/piggybanksqueal piggybanksqueal/heron bash
-
-export PIG_CLASSPATH=$(echo /piggybanksqueal/target/piggybank-squeal-*ies.jar)
-
-cd /piggybanksqueal/src/main/pig/perf_test
-
-pig -x storm -p piggybankpath=/pig/contrib/piggybank/java/piggybank.jar -p numRunners=4 -p keySpace=2048 -P heron_run.properties perf_test.pig

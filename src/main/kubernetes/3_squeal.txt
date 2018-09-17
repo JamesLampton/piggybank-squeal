@@ -1,0 +1,28 @@
+kubectl describe no | grep Allocated -A 4
+
+# Test heron
+export HERON_SERVICE_URL=http://localhost:8001/api/v1/proxy/namespaces/default/services/flailing-dragon-apiserver:9000
+export KNAME=flailing-dragon
+
+export HERON_SERVICE_URL=http://127.0.0.1:8001/api/v1/namespaces/default/services/heron-apiserver:9000/proxy/
+export KNAME=kubernetes
+
+# Run container to execute perf_test
+docker run -ti --rm=true --network=host -e KNAME=$KNAME -e HERON_SERVICE_URL=$HERON_SERVICE_URL -v $PWD:/piggybanksqueal piggybanksqueal/heron bash
+
+heron submit $KNAME --verbose --service-url $HERON_SERVICE_URL /heron/examples/heron-api-examples.jar com.twitter.heron.examples.api.AckingTopology acking
+
+heron submit $KNAME --verbose --config-property heron.class.packing.algorithm=com.twitter.heron.packing.roundrobin.RoundRobinPacking --service-url $HERON_SERVICE_URL /heron/examples/heron-api-examples.jar com.twitter.heron.examples.api.AckingTopology acking
+
+heron kill $KNAME --service-url $HERON_SERVICE_URL acking
+
+export PIG_CLASSPATH=$(echo /piggybanksqueal/target/piggybank-squeal-*ies.jar)
+
+cd /piggybanksqueal/src/main/pig/perf_test
+
+pig -x storm -p piggybankpath=/pig/contrib/piggybank/java/piggybank.jar -p numRunners=4 -p keySpace=2048 -P heron_run.properties perf_test.pig
+pig -x storm -p piggybankpath=/pig/contrib/piggybank/java/piggybank.jar -p numRunners=1 -p keySpace=2048 -P heron_run.properties perf_test.pig
+
+pig -x storm -p piggybankpath=/pig/contrib/piggybank/java/piggybank.jar -p numRunners=1 -p keySpace=2048 -P minikube_run.properties perf_test.pig
+
+heron kill $KNAME --service-url $HERON_SERVICE_URL pigsqueal-c
