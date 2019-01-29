@@ -57,7 +57,7 @@ public class TestGenerateBag extends EvalFunc<DataBag> {
 		DataBag bag = BagFactory.getInstance().newDefaultBag();
 		for (int i = 0; i < count; i++) {
 			Tuple t = TupleFactory.getInstance().newTuple(1);
-			t.append(dist2.nextInt());
+			t.set(0, dist2.nextInt());
 			bag.add(t);
 		}
 		

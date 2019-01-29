@@ -80,7 +80,7 @@ public class Reduce extends FlexyBaseFunction {
 
 	public void setup(String stormId, int partitionIndex) throws IOException {
 		for (POStore store : stores) {
-			StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, false);
+			StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, false, pc);
 			store.setStoreImpl(impl);
 			store.setUp();
 		}

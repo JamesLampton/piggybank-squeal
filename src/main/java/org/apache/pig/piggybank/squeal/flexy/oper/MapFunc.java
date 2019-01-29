@@ -127,7 +127,7 @@ public class MapFunc extends FlexyBaseFunction {
 
 		public void setup(String stormId, int partitionIndex) throws IOException {
 			for (POStore store : stores) {
-				StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, true);
+				StormPOStoreImpl impl = new StormPOStoreImpl(stormId, partitionIndex, sign, true, pc);
 				store.setStoreImpl(impl);
 				store.setUp();
 			}

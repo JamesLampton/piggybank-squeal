@@ -19,6 +19,7 @@
 package org.apache.pig.piggybank.squeal.backend.storm.io;
 
 import java.io.IOException;
+import java.util.Properties;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.conf.Configuration;
@@ -33,6 +34,7 @@ import org.apache.pig.backend.hadoop.executionengine.mapReduceLayer.PigOutputFor
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStore;
 import org.apache.pig.backend.hadoop.executionengine.physicalLayer.relationalOperators.POStoreImpl;
 import org.apache.pig.backend.hadoop.executionengine.shims.HadoopShims;
+import org.apache.pig.impl.PigContext;
 
 public class StormPOStoreImpl extends POStoreImpl {
 
@@ -41,7 +43,7 @@ public class StormPOStoreImpl extends POStoreImpl {
 	private TaskAttemptContext context;
 	private AtomicInteger sign;
 
-	public StormPOStoreImpl(String stormId, int partitionIndex, AtomicInteger sign, boolean isMap) {
+	public StormPOStoreImpl(String stormId, int partitionIndex, AtomicInteger sign, boolean isMap, PigContext pc) {
 		this.partitionIndex = partitionIndex;
 		this.sign = sign;
 		
@@ -50,6 +52,11 @@ public class StormPOStoreImpl extends POStoreImpl {
 		
 		// Create a fake TaskContext for this stuff.
 		Configuration outputConf = new Configuration();
+		Properties prop = pc.getProperties();
+		for (String k : prop.stringPropertyNames()) {
+			outputConf.set(k, prop.getProperty(k));
+		}
+		
 		System.err.println("Creating task attempt context: " + attemptID);
 		this.context = HadoopShims.createTaskAttemptContext(outputConf, attemptID);
 	}
