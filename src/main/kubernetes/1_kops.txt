@@ -20,8 +20,9 @@ export KOPS_STATE_STORE=s3://piggybanksqueal-test-kops-state
 
 kops create cluster --zones us-east-2a --node-count=6 --node-size=t2.large ${NAME} --yes
 
-kops get --name $NAME -o yaml > $NAME.yml
-kops create cluster -f $NAME.yaml
+kops get --name $NAME -o yaml > $NAME.yaml
+kops create -f $NAME.yaml
+kops create secret --name piggybank-squeal-test.k8s.local sshpublickey admin -i ~/.ssh/id_rsa.pub
 
 #kops edit cluster ${NAME}
 kops update cluster ${NAME} --yes
@@ -39,6 +40,7 @@ kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addon
 http://localhost:8001/api/v1/namespaces/kube-system/services/https:kubernetes-dashboard:/proxy/
 kops get secrets kube --type secret -oplaintext
 
+# Heapster!
 kubectl create -f https://raw.githubusercontent.com/kubernetes/kops/master/addons/monitoring-standalone/v1.7.0.yaml
 
 kops delete cluster --name ${NAME}

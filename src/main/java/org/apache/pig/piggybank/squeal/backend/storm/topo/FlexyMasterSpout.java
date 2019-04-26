@@ -75,12 +75,22 @@ public class FlexyMasterSpout extends BaseRichSpout {
 			cur_state ++;
 		} else if (cur_state == 1) {
 			// Waiting for propagation of batch..
+			try {
+				Thread.sleep(100); // FIXME: Make this tunable
+			} catch (InterruptedException e) {
+				throw new RuntimeException(e);
+			}
 		} else if (cur_state == 2) {
 			// Batch completed, begin commit.
 			collector.emit("commit", new Values(cur_batch, true), r.nextInt());
 			cur_state ++;
 		} else if (cur_state == 3) {
 			// Waiting for commit complete.
+//			try {
+//				Thread.sleep(100); // FIXME: Make this tunable
+//			} catch (InterruptedException e) {
+//				throw new RuntimeException(e);
+//			}
 		} else if (cur_state == 4) {
 			// Commit failed, roll back.
 			collector.emit("commit", new Values(cur_batch, false), r.nextInt());

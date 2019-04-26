@@ -1,7 +1,7 @@
 -- If you run storm-local it will launch a test cluster, the following option specifies how long to wait.
 set pig.streaming.run.test.cluster.wait_time '60000';
 set pig.streaming.extra.conf 'test_hook.yaml';
-set pig.streaming.workers '5';
+--set pig.streaming.workers '1';
 --set pig.streaming.jarfile 'testload.jar';
 --set pig.streaming.topology.name 'derpy';
 
@@ -26,11 +26,12 @@ DEFINE genBag org.apache.pig.piggybank.evaluation.TestGenerateBag('42.671', '36.
 
 -- Run the performance spout.
 --raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.TestRateSpout', '["$rate", "$size"]', '1');
-raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.TestRateSpout', '["$rate", "$size"]', '5');
+raw_msgs = LOAD '/dev/null' USING org.apache.pig.piggybank.squeal.backend.storm.io.SpoutWrapper('org.apache.pig.piggybank.squeal.spout.TestRateSpout', '["$rate", "$size"]', '1');
 
 -- Add an intermediate step to cause a transfer of the raw stuff without entering the storage mechanism
 set raw_msgs_shuffleBefore 'true';
 set raw_msgs_parallel '$numRunners';
+--set raw_msgs_parallel '4';
 raw_msgs = FOREACH raw_msgs GENERATE sleepMap(), FLATTEN(genBag()) AS key;
 raw_msgs = FOREACH raw_msgs GENERATE (key % $keySpace) AS key;
 
